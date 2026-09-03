@@ -1,36 +1,44 @@
 'use strict';
 
+// Gerencia sessão e permissões do usuário logado
 const Auth = (() => {
 	const KEY = 'session';
 
+	// Pega dados do usuário logado (fica no sessionStorage)
 	function getSession() {
 		try { return JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch { return null; }
 	}
 
+	// Verifica se usuário logado é admin
 	function isAdmin() {
 		const s = getSession();
 		return !!(s && s.role === 'admin');
 	}
 
+	// Desloga e volta pro login
 	function logout() {
 		sessionStorage.removeItem(KEY);
 		location.replace('login.html');
 	}
 
+	// Protege páginas - redireciona se não tiver logado
 	function guard() {
 		if (!getSession()) location.replace('login.html');
 	}
 
+	// Protege páginas admin - redireciona se não for admin
 	function guardAdmin() {
 		if (!getSession()) { location.replace('login.html'); return; }
 		if (!isAdmin()) location.replace('index.html');
 	}
 
+	// Escapa caracteres HTML pra evitar XSS
 	function _esc(s) {
 		return String(s || '').replace(/[&<>"']/g, c =>
 			({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 	}
 
+	// Adiciona nome do usuário e botão "Sair" no menu
 	function injectNav() {
 		const s = getSession();
 		if (!s) return;
@@ -50,7 +58,7 @@ const Auth = (() => {
 
 window.Auth = Auth;
 
-// Auto-guard and inject nav. Scripts load after DOM (bottom of body), so DOM is ready.
+// Executa guard e injeta menu automaticamente em todas as páginas
 Auth.guard();
 if (document.readyState === 'loading') {
 	document.addEventListener('DOMContentLoaded', () => Auth.injectNav());

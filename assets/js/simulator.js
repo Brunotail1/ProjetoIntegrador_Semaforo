@@ -1,49 +1,48 @@
 'use strict';
 
 /*
- * simulator.js — Pure traffic-light state machine.
- * No DOM, no MQTT. Emits every transition through the onStateChange callback:
- *     onStateChange(id, newState, prevState)
- *
- * States: RED, YELLOW, GREEN, BLINK_YELLOW, SAFETY_RED
- * Automatic cycle uses an internal phase counter:
- *     0 = RED, 1 = YELLOW (towards GREEN), 2 = GREEN, 3 = YELLOW (towards RED)
+ * Máquina de estados do semáforo - controla transições e tempos
+ * Estados: RED, YELLOW, GREEN, BLINK_YELLOW (intermitente), SAFETY_RED
+ * Ciclo automático usa fases: 0=RED, 1=YELLOW→GREEN, 2=GREEN, 3=YELLOW→RED
  */
 class Semaforo {
 	constructor(id, timings, onStateChange) {
 		this.id = id;
+		// Tempos padrão em milissegundos
 		this.timings = Object.assign(
 			{ red: 5000, yellow: 3000, green: 5000, safetyInterval: 1000, min: 1000, max: 60000 },
 			timings
 		);
+		// Callback chamado toda vez que muda de estado
 		this.onStateChange = onStateChange;
 
 		this.state = 'RED';
-		this._phase = 0; // 0=RED, 1=YELLOW_TO_GREEN, 2=GREEN, 3=YELLOW_TO_RED
+		this._phase = 0; // Fase do ciclo automático
 		this.running = false;
 
 		this._timer = null;
 		this._blinkTimer = null;
 		this._stateStartedAt = Date.now();
 
-		// Set by app.js: hook invoked before a GREEN release so the crossing
-		// coordinator can enforce RN01/RN03 (mutual exclusion + safety gap).
+		// Hook do cruzamento pra coordenar RN01/RN03 (evita 2 verdes ao mesmo tempo)
 		this._awaitCrossing = null;
 	}
 
-	/* Milliseconds remaining in the current timed state (0 for non-timed). */
+	// Calcula quanto tempo falta pro próximo estado
 	get remainingMs() {
 		const durations = [this.timings.red, this.timings.yellow, this.timings.green, this.timings.yellow];
 		const d = durations[this._phase] || 0;
 		return Math.max(0, d - (Date.now() - this._stateStartedAt));
 	}
 
+	// Inicia o ciclo automático
 	start() {
 		if (this.running) return;
 		this.running = true;
 		this._scheduleNext();
 	}
 
+	// Para o ciclo e limpa timers
 	stop() {
 		this.running = false;
 		clearTimeout(this._timer);
@@ -52,10 +51,7 @@ class Semaforo {
 		this._blinkTimer = null;
 	}
 
-	/*
-	 * Apply a manual command.
-	 * cmd ∈ { 'vermelho', 'verde', 'amarelo', 'intermitente', 'automatico' }
-	 */
+	// Processa comandos manuais: 'vermelho', 'verde', 'amarelo', 'intermitente', 'automatico'
 	applyCommand(cmd) {
 		if (cmd === 'intermitente') { this.enterSafeState(); return; }
 		if (cmd === 'automatico')   { this._resumeAutomatic(); return; }
@@ -64,7 +60,7 @@ class Semaforo {
 		const targetState = stateMap[cmd];
 		if (!targetState) return;
 
-		// RN02: a GREEN → RED change must pass through YELLOW first.
+		// RN02: verde pra vermelho TEM QUE passar pelo amarelo antes
 		if (this.state === 'GREEN' && targetState === 'RED') {
 			clearTimeout(this._timer);
 			this._phase = 3;
@@ -85,20 +81,17 @@ class Semaforo {
 		if (this.running) this._scheduleNext();
 	}
 
-	/* RN04/RN09 fail-safe: blinking yellow. */
+	// RN04/RN09: modo de segurança (amarelo piscante)
 	enterSafeState() {
 		this.stop();
-		this.running = true; // stay alive to keep the blink callback firing
+		this.running = true; // mantém ativo pra continuar piscando
 		this._doTransition('BLINK_YELLOW');
 		this._blinkTimer = setInterval(() => {
 			if (this.onStateChange) this.onStateChange(this.id, 'BLINK_YELLOW', 'BLINK_YELLOW');
 		}, 500);
 	}
 
-	/*
-	 * RN05: reconfigure durations. Values arrive in seconds; each is clamped
-	 * to [min, max] (in ms). Out-of-range values are pulled to the nearest bound.
-	 */
+	// RN05: atualiza tempos do semáforo (valores vêm em segundos, limita entre min/max)
 	setTimings(cfg) {
 		const { min, max } = this.timings;
 		const clamp = (v) => Math.min(max, Math.max(min, v * 1000));
@@ -115,6 +108,7 @@ class Semaforo {
 		this._scheduleNext();
 	}
 
+	// Agenda próxima transição do ciclo automático
 	_scheduleNext() {
 		if (!this.running) return;
 		if (this.state === 'BLINK_YELLOW' || this.state === 'SAFETY_RED') return;
@@ -129,7 +123,7 @@ class Semaforo {
 		this._timer = setTimeout(() => {
 			if (!this.running) return;
 
-			// RN01/RN03: coordinate before releasing GREEN.
+			// RN01/RN03: antes de abrir o verde, verifica se cruzamento tá seguro
 			if (nextStateName === 'GREEN' && this._awaitCrossing) {
 				this._awaitCrossing(() => {
 					if (!this.running) return;
@@ -146,6 +140,7 @@ class Semaforo {
 		}, currentDuration);
 	}
 
+	// Executa mudança de estado e registra timestamp
 	_doTransition(newState) {
 		const prev = this.state;
 		this.state = newState;

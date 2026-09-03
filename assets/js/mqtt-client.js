@@ -1,28 +1,28 @@
 'use strict';
 
 /*
- * mqtt-client.js — Thin adapter over MQTT.js (global `mqtt`, loaded via
- * mqtt.min.js). Handles connection lifecycle, topic building, heartbeat
- * publishing and re-subscription after reconnect.
- *
- * Topic convention:  aps1/semaforo/<turma>/<equipe>/<deviceId>/<suffix>
+ * Cliente MQTT - gerencia conexão com broker e publicação/assinatura de tópicos
+ * Padrão dos tópicos: aps1/semaforo/<turma>/<equipe>/<deviceId>/<sufixo>
  */
 class MqttClient {
 	constructor(config) {
-		this.config = config; // { broker, port, turma, equipe, deviceIds, heartbeatInterval }
+		// config = { broker, port, turma, equipe, deviceIds, heartbeatInterval }
+		this.config = config;
 		this.client = null;
 		this.connected = false;
 
 		this._reconnectDelay = 2000;
 		this._reconnectTimer = null;
 		this._heartbeatTimer = null;
-		this._subscribedTopics = [];
+		this._subscribedTopics = []; // guarda tópicos pra reassinar depois de reconectar
 
+		// Callbacks customizados
 		this.onConnect = null;
 		this.onDisconnect = null;
-		this.onMessage = null; // (deviceId, suffix, payload)
+		this.onMessage = null; // recebe (deviceId, suffix, payload)
 	}
 
+	// Conecta no broker via WebSocket
 	connect() {
 		const url = `ws://${this.config.broker}:${this.config.port}/mqtt`;
 		const clientId = `semaforo_web_${Math.random().toString(16).slice(2, 10)}`;
@@ -35,7 +35,7 @@ class MqttClient {
 			clearTimeout(this._reconnectTimer);
 			this._startHeartbeat();
 			if (this.onConnect) this.onConnect();
-			// Re-subscribe to everything after a (re)connect.
+			// Reassina todos os tópicos após reconexão
 			this._subscribedTopics.forEach((t) => this.client.subscribe(t));
 		});
 
@@ -48,7 +48,6 @@ class MqttClient {
 		});
 
 		this.client.on('error', () => {
-			// MQTT.js drives its own reconnect loop; we just surface disconnect.
 			if (this.connected) {
 				this.connected = false;
 				this._stopHeartbeat();
@@ -56,20 +55,22 @@ class MqttClient {
 			}
 		});
 
+		// Recebe mensagens e parseia JSON
 		this.client.on('message', (topic, message) => {
 			let payload;
 			try {
 				payload = JSON.parse(message.toString());
 			} catch (e) {
-				return; // ignore malformed payloads
+				return; // ignora payloads mal formatados
 			}
 			const parts = topic.split('/');
-			const deviceId = parts[4];
-			const suffix = parts[5];
+			const deviceId = parts[4]; // extrai deviceId do tópico
+			const suffix = parts[5];   // extrai sufixo (comando, estado, etc)
 			if (this.onMessage) this.onMessage(deviceId, suffix, payload);
 		});
 	}
 
+	// Desconecta e limpa tudo
 	disconnect() {
 		clearTimeout(this._reconnectTimer);
 		this._stopHeartbeat();
@@ -81,11 +82,13 @@ class MqttClient {
 		this._subscribedTopics = [];
 	}
 
+	// Publica mensagem em um tópico específico
 	publish(deviceId, suffix, payload) {
 		if (!this.connected || !this.client) return;
 		this.client.publish(this._buildTopic(deviceId, suffix), JSON.stringify(payload));
 	}
 
+	// Assina um tópico pra receber mensagens
 	subscribe(deviceId, suffix) {
 		const topic = this._buildTopic(deviceId, suffix);
 		if (!this._subscribedTopics.includes(topic)) {
@@ -96,11 +99,13 @@ class MqttClient {
 		}
 	}
 
+	// Monta o tópico seguindo padrão do projeto
 	_buildTopic(deviceId, suffix) {
 		const { turma, equipe } = this.config;
 		return `aps1/semaforo/${turma}/${equipe}/${deviceId}/${suffix}`;
 	}
 
+	// Envia heartbeat periódico pros semáforos
 	_startHeartbeat() {
 		this._stopHeartbeat();
 		this._heartbeatTimer = setInterval(() => {
@@ -115,6 +120,7 @@ class MqttClient {
 		this._heartbeatTimer = null;
 	}
 
+	// Tenta reconectar com backoff exponencial
 	_scheduleReconnect() {
 		clearTimeout(this._reconnectTimer);
 		this._reconnectTimer = setTimeout(() => {
@@ -122,7 +128,7 @@ class MqttClient {
 				this.client.reconnect();
 			}
 		}, this._reconnectDelay);
-		this._reconnectDelay = Math.min(this._reconnectDelay * 2, 30000);
+		this._reconnectDelay = Math.min(this._reconnectDelay * 2, 30000); // max 30s
 	}
 }
 

@@ -78,7 +78,7 @@
 					<section id="main" class="wrapper">
 						<div class="inner">
 							<h1 class="major">Acesso ao Sistema</h1>
-							<p style="font-size:0.82em;opacity:0.55;margin-top:-0.5em;">APS1 · Programação III — Semáforo Inteligente</p>
+							<p style="font-size:0.82em;opacity:0.55;margin-top:-0.5em;">Programação III — Semáforo Inteligente</p>
 
 							<div class="login-columns">
 
@@ -141,41 +141,50 @@
 			(function () {
 				'use strict';
 
+				// Cria usuário admin padrão se não existir
 				function seedAdmin() {
 					const users = Storage.getUsers();
 					const existing = users.find(u => u.email === 'admin@sistema.local');
 					if (!existing) {
+						// Cria admin com senha 123456
 						Storage.saveUser({ nome: 'Administrador', email: 'admin@sistema.local', senha: '123456', role: 'admin' });
 					} else if (existing.senha !== '123456') {
+						// Garante que senha sempre seja 123456
 						existing.senha = '123456';
 						Storage.saveUser(existing);
 					}
 				}
 
+				// Mostra mensagem de erro embaixo do formulário
 				function showError(msg) {
 					const el = document.getElementById('login-error');
 					el.textContent = msg;
 					el.style.display = '';
 				}
 
+				// Processa o login
 				function doLogin() {
 					const email = document.getElementById('f-email').value.trim();
 					const senha = document.getElementById('f-senha').value;
 					if (!email || !senha) return showError('Preencha e-mail e senha.');
 
+					// Busca usuário com email e senha exatos (sem hash)
 					const user = Storage.getUsers().find(u => u.email === email && u.senha === senha);
 					if (!user) return showError('E-mail ou senha incorretos.');
 
+					// Salva sessão no sessionStorage
 					try {
 						sessionStorage.setItem('session', JSON.stringify({
 							id: user.id, nome: user.nome, email: user.email, role: user.role,
 						}));
 					} catch {}
+					
+					// Redireciona pro painel
 					location.replace('index.html');
 				}
 
 				document.addEventListener('DOMContentLoaded', () => {
-					// If already logged in, skip to painel.
+					// Se já tá logado, pula pro painel
 					try {
 						if (JSON.parse(sessionStorage.getItem('session') || 'null')) {
 							location.replace('index.html');
@@ -183,8 +192,10 @@
 						}
 					} catch {}
 
+					// Cria admin se necessário
 					seedAdmin();
 
+					// Eventos do formulário
 					document.getElementById('btn-login').addEventListener('click', doLogin);
 					document.getElementById('f-senha').addEventListener('keydown', e => {
 						if (e.key === 'Enter') doLogin();
