@@ -528,18 +528,28 @@ circle.twin-green.ligado {
 }
 
 .twin-modal-close {
-  position: absolute;
-  top: 14px; right: 16px;
-  z-index: 1;
-  background: none; border: none;
-  color: rgba(255,255,255,0.32);
-  font-size: 1.5em;
+  position: absolute !important;
+  top: 0.85em;
+  right: 0.85em;
+  z-index: 2;
+  /* reset Hyperspace button overrides (all use !important) */
+  background: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  color: rgba(255,255,255,0.35) !important;
+  font-size: 1.35em !important;
+  font-weight: normal !important;
+  height: auto !important;
+  letter-spacing: 0 !important;
+  line-height: 1 !important;
+  padding: 4px 8px !important;
+  text-transform: none !important;
+  writing-mode: horizontal-tb !important;
   cursor: pointer;
-  line-height: 1;
-  padding: 4px 8px;
   transition: color 0.2s;
 }
-.twin-modal-close:hover { color: #fc8181; }
+.twin-modal-close::after { display: none !important; }
+.twin-modal-close:hover { color: #fc8181 !important; }
 
 /* ── Layout dois-colunas ─────────────────────────────────────────── */
 .twin-modal-layout {
@@ -568,6 +578,7 @@ circle.twin-green.ligado {
 
 /* Coluna direita: info + controles */
 .twin-modal-right {
+  position: relative;
   flex: 1;
   padding: 2em 2em 1.8em;
   display: flex;
@@ -581,7 +592,7 @@ circle.twin-green.ligado {
   align-items: center;
   gap: 0.65em;
   flex-wrap: wrap;
-  padding-right: 2.5em; /* espaço para o botão × */
+  padding-right: 2em;
 }
 .twin-modal-name {
   font-size: 1.1em;
