@@ -317,7 +317,7 @@ const CommandLog = (() => {
 
 	function _renderLogTable() {
 		const tbody = document.getElementById('log-tbody');
-		if (!tbody) return;
+		if (!tbody) return; // Elemento não existe mais, retorna sem erro
 		const recent = entries.slice(0, 20);
 		tbody.innerHTML = recent.map((e) => {
 			const ts = new Date(e.timestamp).toLocaleTimeString('pt-BR');
@@ -332,7 +332,7 @@ const CommandLog = (() => {
 		}).join('');
 	}
 
-	return { add, getAll, _renderLogTable };
+	return { add, getAll }; // Removido _renderLogTable do export
 })();
 
 window.CommandLog = CommandLog;
@@ -552,7 +552,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	startCountdownTick();
 	startUptimeTick();
-	CommandLog._renderLogTable();
 	initCrossing();
 
 	// ── MQTT lifecycle handlers ──────────────────────────────────────────────
