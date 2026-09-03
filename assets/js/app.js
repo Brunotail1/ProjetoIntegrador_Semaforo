@@ -53,6 +53,7 @@ function _clearSlot(position) {
 	const cap = position.charAt(0).toUpperCase() + position.slice(1);
 	slot.innerHTML = `<span class="slot-placeholder">${_xEsc(cap)}</span>`;
 	slot.classList.remove('has-device', 'blink-yellow');
+	slot.draggable = false;
 	delete _slotCallbacks[position];
 }
 
@@ -83,10 +84,11 @@ function _renderSlot(position, deviceId) {
 	const cap   = position.charAt(0).toUpperCase() + position.slice(1);
 
 	slot.className = 'crossing-slot has-device';
+	slot.draggable = true;
 	slot.innerHTML = `
 		<button class="slot-remove" title="Remover">×</button>
 		<div class="slot-mini-twin">
-			<svg class="semaforo-svg" viewBox="0 0 120 370" xmlns="http://www.w3.org/2000/svg">
+			<svg class="semaforo-svg" viewBox="0 10 120 250" xmlns="http://www.w3.org/2000/svg">
 				<defs>
 					<radialGradient id="ms-${s}" cx="30%" cy="25%" r="50%">
 						<stop offset="0%" stop-color="rgba(255,255,255,0.18)"/>
@@ -148,7 +150,40 @@ function initCrossing() {
 			const id = e.dataTransfer.getData('text/plain');
 			if (id) assignToSlot(id, slot.dataset.position);
 		});
+		// Arrastar A PARTIR de um slot ocupado
+		slot.addEventListener('dragstart', e => {
+			const deviceId = _crossingLayout[slot.dataset.position];
+			if (!deviceId) { e.preventDefault(); return; }
+			e.dataTransfer.setData('text/plain', deviceId);
+			e.dataTransfer.effectAllowed = 'move';
+			setTimeout(() => { slot.style.opacity = '0.45'; }, 0);
+		});
+		slot.addEventListener('dragend', () => { slot.style.opacity = ''; });
 	});
+
+	// Lista de dispositivos também aceita drop (retornar semáforo para a lista)
+	const _devList = document.getElementById('crossing-device-list');
+	if (_devList) {
+		_devList.addEventListener('dragover', e => {
+			e.preventDefault();
+			_devList.style.outline = '1px dashed rgba(255,255,255,0.28)';
+		});
+		_devList.addEventListener('dragleave', () => { _devList.style.outline = ''; });
+		_devList.addEventListener('drop', e => {
+			e.preventDefault();
+			_devList.style.outline = '';
+			const id = e.dataTransfer.getData('text/plain');
+			if (!id) return;
+			Object.keys(_crossingLayout).forEach(pos => {
+				if (_crossingLayout[pos] === id) {
+					_crossingLayout[pos] = null;
+					_clearSlot(pos);
+				}
+			});
+			_renderCrossingDeviceList();
+			if (window.Storage) Storage.saveDeviceLayout({ ..._crossingLayout });
+		});
+	}
 
 	// Restore occupied slots
 	Object.entries(_crossingLayout).forEach(([pos, id]) => {
