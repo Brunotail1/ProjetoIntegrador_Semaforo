@@ -3,7 +3,7 @@
 /*
  * Máquina de estados do semáforo - controla transições e tempos
  * Estados: RED, YELLOW, GREEN, BLINK_YELLOW (intermitente), SAFETY_RED
- * Ciclo automático usa fases: 0=RED, 1=YELLOW→GREEN, 2=GREEN, 3=YELLOW→RED
+ * Ciclo automático usa fases: 0=GREEN, 1=YELLOW→RED, 2=RED
  */
 class Semaforo {
 	constructor(id, timings, onStateChange) {
@@ -30,7 +30,7 @@ class Semaforo {
 
 	// Calcula quanto tempo falta pro próximo estado
 	get remainingMs() {
-		const durations = [this.timings.red, this.timings.yellow, this.timings.green, this.timings.yellow];
+		const durations = [this.timings.green, this.timings.yellow, this.timings.red];
 		const d = durations[this._phase] || 0;
 		return Math.max(0, d - (Date.now() - this._stateStartedAt));
 	}
@@ -63,10 +63,10 @@ class Semaforo {
 		// RN02: verde pra vermelho TEM QUE passar pelo amarelo antes
 		if (this.state === 'GREEN' && targetState === 'RED') {
 			clearTimeout(this._timer);
-			this._phase = 3;
+			this._phase = 1;
 			this._doTransition('YELLOW');
 			this._timer = setTimeout(() => {
-				this._phase = 0;
+				this._phase = 2;
 				this._doTransition('RED');
 				if (this.running) this._scheduleNext();
 			}, this.timings.yellow);
@@ -74,9 +74,9 @@ class Semaforo {
 		}
 
 		clearTimeout(this._timer);
-		if (targetState === 'RED')        this._phase = 0;
-		else if (targetState === 'GREEN') this._phase = 2;
-		// YELLOW keeps whatever phase (direction) it was in.
+		if (targetState === 'GREEN')       this._phase = 0;
+		else if (targetState === 'YELLOW') this._phase = 1;
+		else if (targetState === 'RED')    this._phase = 2;
 		this._doTransition(targetState);
 		if (this.running) this._scheduleNext();
 	}
@@ -103,7 +103,7 @@ class Semaforo {
 	_resumeAutomatic() {
 		this.stop();
 		this.running = true;
-		this._phase = 0;
+		this._phase = 2;
 		this._doTransition('RED');
 		this._scheduleNext();
 	}
@@ -113,9 +113,9 @@ class Semaforo {
 		if (!this.running) return;
 		if (this.state === 'BLINK_YELLOW' || this.state === 'SAFETY_RED') return;
 
-		const durations = [this.timings.red, this.timings.yellow, this.timings.green, this.timings.yellow];
-		const stateNames = ['RED', 'YELLOW', 'GREEN', 'YELLOW'];
-		const nextPhase = (this._phase + 1) % 4;
+		const durations = [this.timings.green, this.timings.yellow, this.timings.red];
+		const stateNames = ['GREEN', 'YELLOW', 'RED'];
+		const nextPhase = (this._phase + 1) % 3;
 		const nextStateName = stateNames[nextPhase];
 		const currentDuration = durations[this._phase];
 

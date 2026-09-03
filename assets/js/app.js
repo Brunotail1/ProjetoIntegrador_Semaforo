@@ -527,10 +527,12 @@ document.addEventListener('DOMContentLoaded', () => {
 			// });
 		});
 
-		// Stagger start: B begins on GREEN so A=RED / B=GREEN alternate cleanly.
-		if (idx === 1) {
+		// Stagger: A começa em RED (fase 2 no ciclo GREEN→YELLOW→RED), B começa em GREEN (fase 0).
+		if (idx === 0) {
 			sem._phase = 2;
-			sem._doTransition('GREEN');
+			sem._doTransition('RED');
+		} else if (idx === 1) {
+			sem._doTransition('GREEN'); // fase 0 já é o padrão do constructor
 		}
 
 		semaphores[id] = sem;
