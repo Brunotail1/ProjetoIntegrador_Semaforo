@@ -16,181 +16,6 @@
  *   RN10 — commands that would violate RN01 are rejected.
  */
 
-// ── Crossing interactive ──────────────────────────────────────────────────────
-const _crossingLayout = { norte: null, sul: null, leste: null, oeste: null };
-const _slotCallbacks  = {}; // position → fn(state)
-
-function _xEsc(s) {
-	return String(s || '').replace(/[&<>"']/g, c =>
-		({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-}
-
-function _renderCrossingDeviceList() {
-	const list = document.getElementById('crossing-device-list');
-	if (!list) return;
-	list.querySelectorAll('.crossing-device-card').forEach(c => c.remove());
-	const allocated = Object.values(_crossingLayout).filter(Boolean);
-	CONFIG.deviceIds.forEach(id => {
-		const d = (window.Storage ? Storage.getDevices() : []).find(x => x.id === id);
-		const label = (d && d.nome) ? d.nome : (CONFIG.deviceLabels[id] || id);
-		const card = document.createElement('div');
-		card.className = 'crossing-device-card' + (allocated.includes(id) ? ' allocated' : '');
-		card.draggable = true;
-		card.dataset.deviceId = id;
-		card.innerHTML = `<span class="device-id-tag">${_xEsc(id)}</span> ${_xEsc(label)} <span style="margin-left:auto;opacity:0.35;">⠿</span>`;
-		card.addEventListener('dragstart', e => {
-			e.dataTransfer.setData('text/plain', id);
-			card.style.opacity = '0.4';
-		});
-		card.addEventListener('dragend', () => { card.style.opacity = ''; });
-		list.appendChild(card);
-	});
-}
-
-function _clearSlot(position) {
-	const slot = document.querySelector(`.crossing-slot[data-position="${position}"]`);
-	if (!slot) return;
-	const cap = position.charAt(0).toUpperCase() + position.slice(1);
-	slot.innerHTML = `<span class="slot-placeholder">${_xEsc(cap)}</span>`;
-	slot.classList.remove('has-device', 'blink-yellow');
-	slot.draggable = false;
-	delete _slotCallbacks[position];
-}
-
-function _updateSlotVisual(slot, state) {
-	if (!slot) return;
-	slot.querySelectorAll('.twin-led').forEach(l => l.classList.remove('ligado'));
-	slot.classList.remove('blink-yellow');
-	slot.dataset.state = state;
-	if (state === 'BLINK_YELLOW') {
-		slot.classList.add('blink-yellow');
-	} else {
-		const map = { RED: 'twin-red', YELLOW: 'twin-yellow', GREEN: 'twin-green', SAFETY_RED: 'twin-red' };
-		const led = slot.querySelector('.' + (map[state] || ''));
-		if (led) led.classList.add('ligado');
-	}
-	const badge = slot.querySelector('.twin-state-badge');
-	if (badge) badge.textContent = (STATE_LABEL && STATE_LABEL[state]) ? STATE_LABEL[state] : state;
-}
-
-function _renderSlot(position, deviceId) {
-	const slot = document.querySelector(`.crossing-slot[data-position="${position}"]`);
-	if (!slot) return;
-	const d = (window.Storage ? Storage.getDevices() : []).find(x => x.id === deviceId);
-	const label = (d && d.nome) ? d.nome : (CONFIG.deviceLabels[deviceId] || deviceId);
-	const sem   = semaphores[deviceId];
-	const state = sem ? sem.state : 'RED';
-	const s     = deviceId.replace(/[^a-zA-Z0-9_-]/g, '_');
-	const cap   = position.charAt(0).toUpperCase() + position.slice(1);
-
-	slot.className = 'crossing-slot has-device';
-	slot.draggable = true;
-	slot.innerHTML = `
-		<button class="slot-remove" title="Remover">×</button>
-		<div class="slot-mini-twin">
-			<svg class="semaforo-svg" viewBox="0 10 120 250" xmlns="http://www.w3.org/2000/svg">
-				<defs>
-					<radialGradient id="ms-${s}" cx="30%" cy="25%" r="50%">
-						<stop offset="0%" stop-color="rgba(255,255,255,0.18)"/>
-						<stop offset="100%" stop-color="rgba(255,255,255,0)"/>
-					</radialGradient>
-				</defs>
-				<rect x="8" y="14" width="104" height="260" rx="14" fill="#2e2e2e" stroke="#0b0b0b" stroke-width="2"/>
-				<circle cx="60" cy="71"  r="27" fill="#141010" class="twin-led twin-red"/>
-				<circle cx="60" cy="150" r="27" fill="#131108" class="twin-led twin-yellow"/>
-				<circle cx="60" cy="229" r="27" fill="#0d1309" class="twin-led twin-green"/>
-				<circle cx="60" cy="71"  r="27" fill="url(#ms-${s})" pointer-events="none"/>
-				<circle cx="60" cy="150" r="27" fill="url(#ms-${s})" pointer-events="none"/>
-				<circle cx="60" cy="229" r="27" fill="url(#ms-${s})" pointer-events="none"/>
-			</svg>
-			<span class="twin-state-badge">—</span>
-		</div>
-		<div class="slot-label">${_xEsc(cap)} · ${_xEsc(deviceId)}</div>
-	`;
-
-	_updateSlotVisual(slot, state);
-	_slotCallbacks[position] = (newState) => _updateSlotVisual(slot, newState);
-
-	slot.querySelector('.slot-remove').addEventListener('click', () => {
-		_crossingLayout[position] = null;
-		_clearSlot(position);
-		_renderCrossingDeviceList();
-		if (window.Storage) Storage.saveDeviceLayout({ ..._crossingLayout });
-	});
-}
-
-function assignToSlot(deviceId, position) {
-	// Remove device from any other slot it may occupy
-	Object.keys(_crossingLayout).forEach(pos => {
-		if (_crossingLayout[pos] === deviceId && pos !== position) {
-			_crossingLayout[pos] = null;
-			_clearSlot(pos);
-		}
-	});
-	_crossingLayout[position] = deviceId;
-	_renderSlot(position, deviceId);
-	_renderCrossingDeviceList();
-	if (window.Storage) Storage.saveDeviceLayout({ ..._crossingLayout });
-}
-
-function initCrossing() {
-	// Restore saved layout
-	const saved = window.Storage ? Storage.getDeviceLayout() : {};
-	Object.assign(_crossingLayout, saved);
-
-	_renderCrossingDeviceList();
-
-	// Wire drop zones
-	document.querySelectorAll('.crossing-slot').forEach(slot => {
-		slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('over'); });
-		slot.addEventListener('dragleave', () => slot.classList.remove('over'));
-		slot.addEventListener('drop', e => {
-			e.preventDefault();
-			slot.classList.remove('over');
-			const id = e.dataTransfer.getData('text/plain');
-			if (id) assignToSlot(id, slot.dataset.position);
-		});
-		// Arrastar A PARTIR de um slot ocupado
-		slot.addEventListener('dragstart', e => {
-			const deviceId = _crossingLayout[slot.dataset.position];
-			if (!deviceId) { e.preventDefault(); return; }
-			e.dataTransfer.setData('text/plain', deviceId);
-			e.dataTransfer.effectAllowed = 'move';
-			setTimeout(() => { slot.style.opacity = '0.45'; }, 0);
-		});
-		slot.addEventListener('dragend', () => { slot.style.opacity = ''; });
-	});
-
-	// Lista de dispositivos também aceita drop (retornar semáforo para a lista)
-	const _devList = document.getElementById('crossing-device-list');
-	if (_devList) {
-		_devList.addEventListener('dragover', e => {
-			e.preventDefault();
-			_devList.style.outline = '1px dashed rgba(255,255,255,0.28)';
-		});
-		_devList.addEventListener('dragleave', () => { _devList.style.outline = ''; });
-		_devList.addEventListener('drop', e => {
-			e.preventDefault();
-			_devList.style.outline = '';
-			const id = e.dataTransfer.getData('text/plain');
-			if (!id) return;
-			Object.keys(_crossingLayout).forEach(pos => {
-				if (_crossingLayout[pos] === id) {
-					_crossingLayout[pos] = null;
-					_clearSlot(pos);
-				}
-			});
-			_renderCrossingDeviceList();
-			if (window.Storage) Storage.saveDeviceLayout({ ..._crossingLayout });
-		});
-	}
-
-	// Restore occupied slots
-	Object.entries(_crossingLayout).forEach(([pos, id]) => {
-		if (id) _renderSlot(pos, id);
-	});
-}
-
 // ── Twin SVG builder ─────────────────────────────────────────────────────────
 function buildTwinHTML(id, label) {
 	const s = id.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -291,7 +116,6 @@ const CommandLog = (() => {
 		entries.unshift(entry);
 		if (entries.length > MAX) entries.pop();
 		_saveToSession();
-		_renderLogTable();
 		return entry;
 	}
 
@@ -303,36 +127,7 @@ const CommandLog = (() => {
 		} catch (e) { /* storage unavailable — non-fatal */ }
 	}
 
-	function _escape(s) {
-		return String(s).replace(/[&<>"']/g, (c) => ({
-			'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-		})[c]);
-	}
-
-	function _rowClass(result) {
-		if (result === 'OK') return 'log-result-ok';
-		if (result === 'REJECTED') return 'log-result-rejected';
-		return 'log-result-safe';
-	}
-
-	function _renderLogTable() {
-		const tbody = document.getElementById('log-tbody');
-		if (!tbody) return; // Elemento não existe mais, retorna sem erro
-		const recent = entries.slice(0, 20);
-		tbody.innerHTML = recent.map((e) => {
-			const ts = new Date(e.timestamp).toLocaleTimeString('pt-BR');
-			return `<tr>
-				<td>${_escape(ts)}</td>
-				<td><code>${_escape(e.deviceId)}</code></td>
-				<td>${_escape(e.origin)}</td>
-				<td>${_escape(e.command)}</td>
-				<td class="${_rowClass(e.result)}">${_escape(e.result)}</td>
-				<td>${_escape(e.reason)}</td>
-			</tr>`;
-		}).join('');
-	}
-
-	return { add, getAll }; // Removido _renderLogTable do export
+	return { add, getAll };
 })();
 
 window.CommandLog = CommandLog;
@@ -344,7 +139,7 @@ const deviceLastMqtt = {};
 const deviceConnected = {};
 
 // ── Crossing Coordination (RN01 / RN03) ───────────────────────────────────────
-function coordinateCrossing(senderSem, partnerSems, onReady) {
+function coordinateCrossing(partnerSems, onReady) {
 	// RN01: every partner that is GREEN or YELLOW must be forced to RED first.
 	const partners = Array.isArray(partnerSems) ? partnerSems : (partnerSems ? [partnerSems] : []);
 	partners.forEach(p => {
@@ -487,10 +282,6 @@ document.addEventListener('DOMContentLoaded', () => {
 				});
 			}
 
-			// Update crossing slot if this device is placed there (desabilitado - cruzamento removido)
-			// Object.entries(_crossingLayout).forEach(([pos, slotId]) => {
-			// 	if (slotId === devId && _slotCallbacks[pos]) _slotCallbacks[pos](newState);
-			// });
 		});
 
 		// Stagger: A começa em RED (fase 2 no ciclo GREEN→YELLOW→RED), B começa em GREEN (fase 0).
@@ -511,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			const partners = CONFIG.deviceIds
 				.filter(pid => pid !== id)
 				.map(pid => semaphores[pid]);
-			coordinateCrossing(semaphores[id], partners, onReady);
+			coordinateCrossing(partners, onReady);
 		};
 	});
 
@@ -519,7 +310,6 @@ document.addEventListener('DOMContentLoaded', () => {
 	CONFIG.deviceIds.forEach((id) => semaphores[id].start());
 
 	startCountdownTick();
-	// initCrossing(); // Removido - cruzamento interativo não existe mais
 
 	// ── MQTT lifecycle handlers ──────────────────────────────────────────────
 	mqttClient.onConnect = () => {

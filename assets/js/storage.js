@@ -54,18 +54,6 @@ const Storage = (() => {
 		deleteDevice(id) {
 			_write(DEVICES_KEY, _read(DEVICES_KEY).filter(d => d.id !== id));
 		},
-
-		// ── Layout do cruzamento (qual semáforo em qual posição) ──
-		getDeviceLayout() {
-			try {
-				return JSON.parse(localStorage.getItem('semaforo_cruzamento') || 'null') ||
-					{ norte: null, sul: null, leste: null, oeste: null };
-			} catch { return { norte: null, sul: null, leste: null, oeste: null }; }
-		},
-
-		saveDeviceLayout(layout) {
-			try { localStorage.setItem('semaforo_cruzamento', JSON.stringify(layout)); } catch {}
-		},
 	};
 })();
 
