@@ -164,6 +164,36 @@ circle.twin-green.ligado {
 .log-result-rejected { color: #fc8181; }
 .log-result-safe     { color: #f6e05e; }
 
+/* ── input[type="number"] fix (not covered by Hyperspace theme) ──────── */
+#form-section input[type="number"] {
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.25em;
+  border: solid 1px rgba(255, 255, 255, 0.15);
+  color: inherit;
+  display: block;
+  outline: 0;
+  padding: 0 1em;
+  width: 100%;
+  height: 2.75em;
+}
+
+#form-section input[type="number"]:focus {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 1px #ffffff;
+}
+
+#form-section input[type="number"]::-webkit-outer-spin-button,
+#form-section input[type="number"]::-webkit-inner-spin-button {
+  opacity: 0.4;
+}
+
+#form-section > ul.actions {
+  margin-top: 2.5em;
+}
+
 /* ── Responsive ──────────────────────────────────────────────────────── */
 @media (max-width: 736px) { .twin-intersection { gap: 3em; } }
 @media (max-width: 480px) {
