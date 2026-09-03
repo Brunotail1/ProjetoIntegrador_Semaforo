@@ -9,8 +9,6 @@ class MqttClient {
 		// config = { broker, port, turma, equipe, deviceIds, heartbeatInterval }
 		this.config = config;
 		this.client = null;
-		this.connected = false;
-
 		this._reconnectDelay = 2000;
 		this._reconnectTimer = null;
 		this._heartbeatTimer = null;
@@ -30,7 +28,6 @@ class MqttClient {
 		this.client = mqtt.connect(url, { clientId, clean: true, connectTimeout: 8000 });
 
 		this.client.on('connect', () => {
-			this.connected = true;
 			this._reconnectDelay = 2000;
 			clearTimeout(this._reconnectTimer);
 			this._startHeartbeat();
@@ -40,19 +37,14 @@ class MqttClient {
 		});
 
 		this.client.on('close', () => {
-			if (!this.connected) return;
-			this.connected = false;
 			this._stopHeartbeat();
 			if (this.onDisconnect) this.onDisconnect();
 			this._scheduleReconnect();
 		});
 
 		this.client.on('error', () => {
-			if (this.connected) {
-				this.connected = false;
-				this._stopHeartbeat();
-				if (this.onDisconnect) this.onDisconnect();
-			}
+			this._stopHeartbeat();
+			if (this.onDisconnect) this.onDisconnect();
 		});
 
 		// Recebe mensagens e parseia JSON
@@ -78,13 +70,12 @@ class MqttClient {
 			this.client.end(true);
 			this.client = null;
 		}
-		this.connected = false;
 		this._subscribedTopics = [];
 	}
 
 	// Publica mensagem em um tópico específico
 	publish(deviceId, suffix, payload) {
-		if (!this.connected || !this.client) return;
+		if (!this.client) return;
 		this.client.publish(this._buildTopic(deviceId, suffix), JSON.stringify(payload));
 	}
 
@@ -94,7 +85,7 @@ class MqttClient {
 		if (!this._subscribedTopics.includes(topic)) {
 			this._subscribedTopics.push(topic);
 		}
-		if (this.connected && this.client) {
+		if (this.client) {
 			this.client.subscribe(topic);
 		}
 	}
@@ -124,7 +115,7 @@ class MqttClient {
 	_scheduleReconnect() {
 		clearTimeout(this._reconnectTimer);
 		this._reconnectTimer = setTimeout(() => {
-			if (!this.connected && this.client) {
+			if (this.client) {
 				this.client.reconnect();
 			}
 		}, this._reconnectDelay);

@@ -383,25 +383,20 @@ function updateTwin(deviceId, state) {
 	if (badge) badge.textContent = STATE_LABEL[state] || state;
 }
 
-function updateStatusCard(deviceId, state, lastMqtt, connected) {
+function updateStatusCard(deviceId, state, lastMqtt) {
 	const card = document.getElementById('status-' + deviceId);
 	if (!card) return;
 
 	const stateEl = card.querySelector('.card-state');
 	const mqttEl = card.querySelector('.card-last-mqtt');
-	const connEl = card.querySelector('.card-connection');
 
 	if (stateEl) stateEl.textContent = STATE_LABEL[state] || state;
 	if (mqttEl && lastMqtt) mqttEl.textContent = new Date(lastMqtt).toLocaleTimeString('pt-BR');
-	if (connEl) {
-		connEl.textContent = connected ? 'Conectado' : 'Desconectado';
-		connEl.className = 'card-connection ' + (connected ? 'log-result-ok' : 'log-result-rejected');
-	}
 
 	// Persist for status.html to read
 	try {
 		const all = JSON.parse(sessionStorage.getItem('deviceStatus') || '{}');
-		all[deviceId] = { state, lastMqtt, connected, ts: Date.now() };
+		all[deviceId] = { state, lastMqtt, ts: Date.now() };
 		sessionStorage.setItem('deviceStatus', JSON.stringify(all));
 	} catch {}
 }
@@ -423,33 +418,6 @@ function startCountdownTick() {
 	}, 200);
 }
 
-// ── Uptime ────────────────────────────────────────────────────────────────────
-function startUptimeTick() {
-	const el = document.getElementById('uptime');
-	if (!el) return;
-	const startTime = Date.now();
-	const pad = (n) => String(n).padStart(2, '0');
-	setInterval(() => {
-		const s = Math.floor((Date.now() - startTime) / 1000);
-		const m = Math.floor(s / 60);
-		const h = Math.floor(m / 60);
-		el.textContent = `${pad(h)}:${pad(m % 60)}:${pad(s % 60)}`;
-	}, 1000);
-}
-
-// ── MQTT badge ────────────────────────────────────────────────────────────────
-function setMqttStatus(status) {
-	const labels = { connected: 'Conectado', disconnected: 'Desconectado', connecting: 'Conectando…' };
-	const label = labels[status] || 'Conectando…';
-	// There can be several indicators on the page (sidebar + hero).
-	document.querySelectorAll('.js-status-dot').forEach((dot) => {
-		dot.className = 'status-dot js-status-dot ' + status;
-	});
-	document.querySelectorAll('.js-status-text').forEach((text) => {
-		text.textContent = label;
-	});
-}
-
 // ── Watchdog (RN04) ───────────────────────────────────────────────────────────
 function resetWatchdog(deviceId) {
 	deviceLastMqtt[deviceId] = Date.now();
@@ -462,14 +430,12 @@ function resetWatchdog(deviceId) {
 			sem.enterSafeState();
 			CommandLog.add(deviceId, 'SYSTEM', 'watchdog_timeout', 'SAFE_STATE', 'RN04: sem heartbeat por 15s');
 		}
-		updateStatusCard(deviceId, 'BLINK_YELLOW', deviceLastMqtt[deviceId], false);
+		updateStatusCard(deviceId, 'BLINK_YELLOW', deviceLastMqtt[deviceId]);
 	}, CONFIG.watchdogTimeout);
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-	setMqttStatus('connecting');
-
 	// Read devices from localStorage; fall back to CONFIG if storage is empty.
 	const _storedDevices = window.Storage ? Storage.getDevices() : [];
 	const _activeDevices = _storedDevices.length > 0
@@ -504,7 +470,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	CONFIG.deviceIds.forEach((id, idx) => {
 		const sem = new Semaforo(id, _deviceTimings[id] || CONFIG.timings, (devId, newState, prevState) => {
 			updateTwin(devId, newState);
-			updateStatusCard(devId, newState, deviceLastMqtt[devId], deviceConnected[devId]);
+			updateStatusCard(devId, newState, deviceLastMqtt[devId]);
 
 			// RN07: log every real transition (blink ticks are cosmetic, skip them).
 			if (newState !== 'BLINK_YELLOW' || prevState !== 'BLINK_YELLOW') {
@@ -553,13 +519,11 @@ document.addEventListener('DOMContentLoaded', () => {
 	CONFIG.deviceIds.forEach((id) => semaphores[id].start());
 
 	startCountdownTick();
-	startUptimeTick();
 	// initCrossing(); // Removido - cruzamento interativo não existe mais
 
 	// ── MQTT lifecycle handlers ──────────────────────────────────────────────
 	mqttClient.onConnect = () => {
-		setMqttStatus('connected');
-		CommandLog.add('SISTEMA', 'SYSTEM', 'mqtt_connect', 'OK', 'Broker conectado');
+		CommandLog.add('SISTEMA', 'SYSTEM', 'mqtt_connect', 'OK', 'Broker online');
 		CONFIG.deviceIds.forEach((id) => {
 			['estado', 'comando', 'configuracao', 'falha', 'sincronizacao'].forEach((s) => {
 				mqttClient.subscribe(id, s);
@@ -568,12 +532,11 @@ document.addEventListener('DOMContentLoaded', () => {
 	};
 
 	mqttClient.onDisconnect = () => {
-		setMqttStatus('disconnected');
 		CommandLog.add('SISTEMA', 'SYSTEM', 'mqtt_disconnect', 'SAFE_STATE', 'RN04: conexão perdida');
 		CONFIG.deviceIds.forEach((id) => {
 			if (semaphores[id]) semaphores[id].enterSafeState();
 			deviceConnected[id] = false;
-			updateStatusCard(id, 'BLINK_YELLOW', deviceLastMqtt[id], false);
+			updateStatusCard(id, 'BLINK_YELLOW', deviceLastMqtt[id]);
 		});
 	};
 
@@ -586,7 +549,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		if (suffix === 'sincronizacao') {
 			deviceConnected[deviceId] = true;
-			updateStatusCard(deviceId, sem.state, deviceLastMqtt[deviceId], true);
+			updateStatusCard(deviceId, sem.state, deviceLastMqtt[deviceId]);
 			return;
 		}
 
@@ -624,7 +587,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		if (suffix === 'falha') {
 			sem.enterSafeState();
 			CommandLog.add(deviceId, 'MQTT', `falha:${payload.luz || '?'}`, 'SAFE_STATE', 'RN09: falha de luz');
-			updateStatusCard(deviceId, 'BLINK_YELLOW', deviceLastMqtt[deviceId], deviceConnected[deviceId]);
+			updateStatusCard(deviceId, 'BLINK_YELLOW', deviceLastMqtt[deviceId]);
 			return;
 		}
 	};
