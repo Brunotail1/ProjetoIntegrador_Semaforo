@@ -521,10 +521,10 @@ document.addEventListener('DOMContentLoaded', () => {
 				});
 			}
 
-			// Update crossing slot if this device is placed there.
-			Object.entries(_crossingLayout).forEach(([pos, slotId]) => {
-				if (slotId === devId && _slotCallbacks[pos]) _slotCallbacks[pos](newState);
-			});
+			// Update crossing slot if this device is placed there (desabilitado - cruzamento removido)
+			// Object.entries(_crossingLayout).forEach(([pos, slotId]) => {
+			// 	if (slotId === devId && _slotCallbacks[pos]) _slotCallbacks[pos](newState);
+			// });
 		});
 
 		// Stagger start: B begins on GREEN so A=RED / B=GREEN alternate cleanly.
@@ -552,7 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	startCountdownTick();
 	startUptimeTick();
-	initCrossing();
+	// initCrossing(); // Removido - cruzamento interativo não existe mais
 
 	// ── MQTT lifecycle handlers ──────────────────────────────────────────────
 	mqttClient.onConnect = () => {
