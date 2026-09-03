@@ -67,6 +67,19 @@
 									<!-- populado por app.js -->
 								</div>
 								<div class="crossing-board" id="crossing-board">
+									<!-- Calçadas nos 4 cantos -->
+									<div class="crs-corner crs-nw"></div>
+									<div class="crs-corner crs-ne"></div>
+									<div class="crs-corner crs-sw"></div>
+									<div class="crs-corner crs-se"></div>
+									<!-- Faixas de pedestre -->
+									<div class="crs-zebra crs-zebra-n"></div>
+									<div class="crs-zebra crs-zebra-s"></div>
+									<div class="crs-zebra crs-zebra-e"></div>
+									<div class="crs-zebra crs-zebra-w"></div>
+									<!-- Centro da interseção -->
+									<div class="crs-center"></div>
+									<!-- Ruas -->
 									<div class="crossing-road-h"></div>
 									<div class="crossing-road-v"></div>
 									<div class="crossing-slot" data-position="norte">
@@ -88,11 +101,43 @@
 
 			</div>
 
-			<!-- Modal: semáforo em tela cheia -->
+			<!-- Modal: painel de detalhe do semáforo -->
 			<div id="twin-modal" class="twin-modal-overlay" hidden>
 				<div class="twin-modal-card">
 					<button class="twin-modal-close" id="twin-modal-close" title="Fechar (Esc)">×</button>
-					<div id="twin-modal-body"></div>
+					<div class="twin-modal-layout">
+
+						<!-- Coluna esquerda: SVG ampliado -->
+						<div class="twin-modal-left" id="twin-modal-body"></div>
+
+						<!-- Coluna direita: info + controles -->
+						<div class="twin-modal-right">
+
+							<div class="twin-modal-header">
+								<h3 class="twin-modal-name" id="modal-dev-name">—</h3>
+								<span class="device-id-tag" id="modal-dev-id"></span>
+							</div>
+
+							<div class="twin-modal-status-block" id="modal-state-container">
+								<div class="twin-modal-status-row">
+									<span class="twin-modal-status-label">Estado</span>
+									<span class="twin-state-badge" id="modal-state-badge">—</span>
+								</div>
+								<div class="twin-modal-status-row">
+									<span class="twin-modal-status-label">Tempo restante</span>
+									<span class="twin-countdown" id="modal-countdown">—</span>
+								</div>
+							</div>
+
+							<div class="twin-modal-section">
+								<span class="twin-modal-section-title">Tópico MQTT para comandos</span>
+								<code class="twin-modal-topic" id="modal-mqtt-topic">—</code>
+								<span class="twin-modal-section-title" style="margin-top:0.6em;">Payload</span>
+								<code class="twin-modal-topic">{"cmd":"verde"}</code>
+							</div>
+
+						</div>
+					</div>
 				</div>
 			</div>
 
@@ -125,35 +170,53 @@
 		<script>
 		document.addEventListener('DOMContentLoaded', () => {
 			'use strict';
-			const modal = document.getElementById('twin-modal');
-			const body  = document.getElementById('twin-modal-body');
-			const btnX  = document.getElementById('twin-modal-close');
-			let _activeId = null;
+			const modal       = document.getElementById('twin-modal');
+			const body        = document.getElementById('twin-modal-body');
+			const btnX        = document.getElementById('twin-modal-close');
+			const elName      = document.getElementById('modal-dev-name');
+			const elDevId     = document.getElementById('modal-dev-id');
+			const elBadge     = document.getElementById('modal-state-badge');
+			const elCdown     = document.getElementById('modal-countdown');
+			const elTopic     = document.getElementById('modal-mqtt-topic');
+			const elStateCont = document.getElementById('modal-state-container');
+			let _activeId     = null;
 
 			function syncState(id, state) {
+				// Atualiza LEDs no SVG
 				const el = document.getElementById('twin-modal-' + id);
-				if (!el) return;
-				el.dataset.state = state;
-				el.querySelectorAll('.twin-led').forEach(l => l.classList.remove('ligado'));
-				el.classList.remove('blink-yellow');
-				if (state === 'BLINK_YELLOW') {
-					el.classList.add('blink-yellow');
-				} else {
-					const map = { RED: 'twin-red', YELLOW: 'twin-yellow', GREEN: 'twin-green', SAFETY_RED: 'twin-red' };
-					const led = el.querySelector('.' + (map[state] || ''));
-					if (led) led.classList.add('ligado');
+				if (el) {
+					el.dataset.state = state;
+					el.querySelectorAll('.twin-led').forEach(l => l.classList.remove('ligado'));
+					el.classList.remove('blink-yellow');
+					if (state === 'BLINK_YELLOW') {
+						el.classList.add('blink-yellow');
+					} else {
+						const map = { RED: 'twin-red', YELLOW: 'twin-yellow', GREEN: 'twin-green', SAFETY_RED: 'twin-red' };
+						const led = el.querySelector('.' + (map[state] || ''));
+						if (led) led.classList.add('ligado');
+					}
 				}
-				const badge = el.querySelector('.twin-state-badge');
-				if (badge) badge.textContent = (STATE_LABEL && STATE_LABEL[state]) ? STATE_LABEL[state] : state;
+				// Atualiza painel direito
+				const label = (STATE_LABEL && STATE_LABEL[state]) ? STATE_LABEL[state] : state;
+				if (elBadge)     { elBadge.textContent = label; }
+				if (elStateCont) { elStateCont.dataset.state = state; }
 			}
 
 			function openModal(id) {
 				_activeId = id;
-				const d = window.Storage ? Storage.getDevices().find(x => x.id === id) : null;
-				const label = (d && d.nome) ? d.nome : (CONFIG.deviceLabels[id] || id);
-				body.innerHTML = buildTwinHTML('modal-' + id, label);
+				const d     = window.Storage ? Storage.getDevices().find(x => x.id === id) : null;
+				const name  = (d && d.nome) ? d.nome : (CONFIG.deviceLabels[id] || id);
+				const topic = 'aps1/semaforo/' + CONFIG.turma + '/' + CONFIG.equipe + '/' + id + '/comando';
+
+				body.innerHTML = buildTwinHTML('modal-' + id, name);
+
+				if (elName)  elName.textContent  = name;
+				if (elDevId) elDevId.textContent  = id;
+				if (elTopic) elTopic.textContent  = topic;
+
 				const sem = semaphores[id];
 				if (sem) syncState(id, sem.state);
+
 				modal.hidden = false;
 
 				if (sem && !sem._modalWrapped) {
@@ -171,14 +234,12 @@
 				_activeId = null;
 			}
 
-			// Countdown dedicado do modal
+			// Countdown dedicado
 			setInterval(() => {
 				if (!_activeId || modal.hidden) return;
 				const sem = semaphores[_activeId];
-				if (!sem) return;
-				const el = document.getElementById('countdown-modal-' + _activeId);
-				if (!el) return;
-				el.textContent = (sem.state === 'BLINK_YELLOW' || sem.state === 'SAFETY_RED')
+				if (!sem || !elCdown) return;
+				elCdown.textContent = (sem.state === 'BLINK_YELLOW' || sem.state === 'SAFETY_RED')
 					? '—'
 					: Math.ceil(sem.remainingMs / 1000) + 's';
 			}, 200);

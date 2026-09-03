@@ -212,71 +212,158 @@ circle.twin-green.ligado {
 
 .crossing-board {
   position: relative;
-  width: 380px;
-  height: 380px;
-  background: #141414;
-  border-radius: 12px;
+  width: 560px;
+  height: 560px;
+  background: #111;
+  border-radius: 16px;
   flex-shrink: 0;
   box-shadow: 0 8px 40px rgba(0,0,0,0.75), 0 0 0 1px rgba(255,255,255,0.06);
   overflow: hidden;
+}
+
+/* ── Calçadas (cantos) ──────────────────────────────────────────── */
+.crs-corner {
+  position: absolute;
+  width: 33%; height: 33%;
+  background: #1b1b1b;
+  z-index: 1;
+}
+.crs-nw { top: 0;    left: 0;   border-bottom-right-radius: 10px; }
+.crs-ne { top: 0;    right: 0;  border-bottom-left-radius: 10px; }
+.crs-sw { bottom: 0; left: 0;   border-top-right-radius: 10px; }
+.crs-se { bottom: 0; right: 0;  border-top-left-radius: 10px; }
+
+/* ── Faixas de pedestre ─────────────────────────────────────────── */
+.crs-zebra { position: absolute; z-index: 3; }
+
+.crs-zebra-n {
+  left: 33%; width: 34%; height: 26px;
+  top: calc(33% - 26px);
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255,255,255,0.55) 0, rgba(255,255,255,0.55) 7px,
+    transparent 7px, transparent 14px
+  );
+}
+.crs-zebra-s {
+  left: 33%; width: 34%; height: 26px;
+  top: 67%;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255,255,255,0.55) 0, rgba(255,255,255,0.55) 7px,
+    transparent 7px, transparent 14px
+  );
+}
+.crs-zebra-e {
+  top: 33%; height: 34%; width: 26px;
+  left: 67%;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(255,255,255,0.55) 0, rgba(255,255,255,0.55) 7px,
+    transparent 7px, transparent 14px
+  );
+}
+.crs-zebra-w {
+  top: 33%; height: 34%; width: 26px;
+  left: calc(33% - 26px);
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(255,255,255,0.55) 0, rgba(255,255,255,0.55) 7px,
+    transparent 7px, transparent 14px
+  );
+}
+
+/* ── Caixa do centro da interseção ──────────────────────────────── */
+.crs-center {
+  position: absolute;
+  left: 33%; top: 33%; width: 34%; height: 34%;
+  z-index: 3;
+  border: 2px dashed rgba(255,220,60,0.18);
+  box-sizing: border-box;
+  pointer-events: none;
 }
 
 .crossing-road-h {
   position: absolute;
   left: 0; right: 0;
   top: 50%;
-  height: 36%;
+  height: 34%;
   transform: translateY(-50%);
-  background: #2c2c2c;
+  background: #2d2d2d;
+  z-index: 2;
+  box-shadow: inset 0 4px 8px rgba(0,0,0,0.5), inset 0 -4px 8px rgba(0,0,0,0.5);
 }
 .crossing-road-v {
   position: absolute;
   top: 0; bottom: 0;
   left: 50%;
-  width: 36%;
+  width: 34%;
   transform: translateX(-50%);
-  background: #2c2c2c;
+  background: #2d2d2d;
+  z-index: 2;
+  box-shadow: inset 4px 0 8px rgba(0,0,0,0.5), inset -4px 0 8px rgba(0,0,0,0.5);
 }
 
-/* Center line (dashes) for horizontal road */
+/* Linhas de borda brancas (guia de pista) */
+.crossing-road-h::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom,
+      rgba(255,255,255,0.16) 0, rgba(255,255,255,0.16) 2px,
+      transparent 2px, transparent calc(100% - 2px),
+      rgba(255,255,255,0.16) calc(100% - 2px), rgba(255,255,255,0.16) 100%
+    );
+  pointer-events: none;
+}
+.crossing-road-v::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to right,
+      rgba(255,255,255,0.16) 0, rgba(255,255,255,0.16) 2px,
+      transparent 2px, transparent calc(100% - 2px),
+      rgba(255,255,255,0.16) calc(100% - 2px), rgba(255,255,255,0.16) 100%
+    );
+  pointer-events: none;
+}
+
+/* Linhas de centro tracejadas (amarelo) */
 .crossing-road-h::after {
   content: '';
   position: absolute;
   left: 0; right: 0;
   top: 50%;
-  height: 2px;
+  height: 3px;
   transform: translateY(-50%);
   background: repeating-linear-gradient(
     90deg,
-    rgba(255,255,160,0.18) 0px,
-    rgba(255,255,160,0.18) 18px,
-    transparent 18px,
-    transparent 32px
+    rgba(255,220,60,0.55) 0, rgba(255,220,60,0.55) 20px,
+    transparent 20px, transparent 36px
   );
 }
 
-/* Center line (dashes) for vertical road */
 .crossing-road-v::after {
   content: '';
   position: absolute;
   top: 0; bottom: 0;
   left: 50%;
-  width: 2px;
+  width: 3px;
   transform: translateX(-50%);
   background: repeating-linear-gradient(
     180deg,
-    rgba(255,255,160,0.18) 0px,
-    rgba(255,255,160,0.18) 18px,
-    transparent 18px,
-    transparent 32px
+    rgba(255,220,60,0.55) 0, rgba(255,220,60,0.55) 20px,
+    transparent 20px, transparent 36px
   );
 }
 
 
 .crossing-slot {
   position: absolute;
-  width: 100px;
-  height: 130px;
+  width: 108px;
+  height: 140px;
   border: 2px dashed rgba(255,255,255,0.18);
   border-radius: 8px;
   display: flex;
@@ -321,7 +408,7 @@ circle.twin-green.ligado {
   flex-direction: column;
   align-items: center;
 }
-.slot-mini-twin .semaforo-svg   { width: 58px; }
+.slot-mini-twin .semaforo-svg   { width: 50px; }
 .slot-mini-twin .twin-state-badge {
   font-size: 0.52em;
   padding: 0.22em 0.9em;
@@ -359,16 +446,21 @@ circle.twin-green.ligado {
 .crossing-slot.blink-yellow circle.twin-green { fill: #0d1309; filter: none; }
 
 @media (max-width: 900px) {
-  .crossing-board { width: 300px; height: 300px; }
-  .crossing-slot  { width: 80px; height: 110px; }
-  .slot-mini-twin .semaforo-svg { width: 46px; }
+  .crossing-board { width: 420px; height: 420px; }
+  .crossing-slot  { width: 88px; height: 120px; }
+  .slot-mini-twin .semaforo-svg { width: 50px; }
+}
+@media (max-width: 680px) {
+  .crossing-board { width: 320px; height: 320px; }
+  .crossing-slot  { width: 72px; height: 100px; }
+  .slot-mini-twin .semaforo-svg { width: 40px; }
 }
 @media (max-width: 600px) {
   .crossing-container { flex-direction: column; }
-  .crossing-board     { width: 100%; max-width: 340px; height: 340px; }
+  .crossing-board     { width: 100%; max-width: 360px; height: 360px; }
 }
 
-/* ── Semaphore fullscreen modal ───────────────────────────────────── */
+/* ── Semaphore detail modal ───────────────────────────────────────── */
 .twin-semaforo {
   cursor: pointer;
   transition: transform 0.15s ease, filter 0.15s ease;
@@ -381,37 +473,37 @@ circle.twin-green.ligado {
 .twin-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.85);
+  background: rgba(0,0,0,0.65);
   z-index: 9000;
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  padding: 1.5em;
+  box-sizing: border-box;
 }
 .twin-modal-overlay[hidden] { display: none; }
 
 .twin-modal-card {
   position: relative;
-  background: #1c1c2e;
+  background: #16162a;
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 20px;
-  padding: 2.5em 3em;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5em;
-  box-shadow: 0 24px 80px rgba(0,0,0,0.8);
-  min-width: 300px;
+  width: 100%;
+  max-width: 740px;
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 32px 90px rgba(0,0,0,0.75);
 }
 
 .twin-modal-close {
   position: absolute;
-  top: 14px; right: 18px;
-  background: none;
-  border: none;
-  color: rgba(255,255,255,0.35);
-  font-size: 1.6em;
+  top: 14px; right: 16px;
+  z-index: 1;
+  background: none; border: none;
+  color: rgba(255,255,255,0.32);
+  font-size: 1.5em;
   cursor: pointer;
   line-height: 1;
   padding: 4px 8px;
@@ -419,14 +511,111 @@ circle.twin-green.ligado {
 }
 .twin-modal-close:hover { color: #fc8181; }
 
-.twin-modal-card .semaforo-svg   { width: 260px; }
-.twin-modal-card .twin-label     { font-size: 1em; margin-top: 12px; }
-.twin-modal-card .twin-state-badge {
-  font-size: 0.9em;
-  padding: 0.35em 1.6em;
-  margin-top: 8px;
+/* ── Layout dois-colunas ─────────────────────────────────────────── */
+.twin-modal-layout {
+  display: flex;
+  min-height: 360px;
 }
-.twin-modal-card .twin-countdown {
-  font-size: 1.8em;
-  color: rgba(255,255,255,0.6);
+
+/* Coluna esquerda: SVG */
+.twin-modal-left {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5em 1.8em;
+  background: rgba(0,0,0,0.28);
+  border-radius: 20px 0 0 20px;
+  flex-shrink: 0;
+  min-width: 190px;
+}
+.twin-modal-left .twin-semaforo  { cursor: default; pointer-events: none; }
+.twin-modal-left .semaforo-svg   { width: 140px; }
+.twin-modal-left .twin-label,
+.twin-modal-left .twin-countdown,
+.twin-modal-left > .twin-semaforo > div:last-child { display: none; }
+/* Hide the badge generated by buildTwinHTML inside the left column */
+.twin-modal-left .twin-state-badge { display: none; }
+
+/* Coluna direita: info + controles */
+.twin-modal-right {
+  flex: 1;
+  padding: 2em 2em 1.8em;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1em;
+  min-width: 0;
+}
+
+.twin-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 0.65em;
+  flex-wrap: wrap;
+  padding-right: 2.5em; /* espaço para o botão × */
+}
+.twin-modal-name {
+  font-size: 1.1em;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+/* Bloco de estado */
+.twin-modal-status-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45em;
+  padding: 0.9em 1.1em;
+  background: rgba(255,255,255,0.04);
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.07);
+}
+.twin-modal-status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+}
+.twin-modal-status-label {
+  font-size: 0.72em;
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  min-width: 110px;
+}
+.twin-modal-right .twin-countdown {
+  font-size: 1.35em;
+  color: rgba(255,255,255,0.7);
+}
+/* Seções */
+.twin-modal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45em;
+}
+.twin-modal-section-title {
+  font-size: 0.63em;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: rgba(255,255,255,0.35);
+}
+
+/* Tópico MQTT */
+.twin-modal-topic {
+  display: block;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.72em;
+  background: rgba(0,0,0,0.32);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+  padding: 0.45em 0.7em;
+  color: rgba(255,255,255,0.58);
+  word-break: break-all;
+}
+
+/* Responsivo */
+@media (max-width: 560px) {
+  .twin-modal-layout     { flex-direction: column; }
+  .twin-modal-left       { border-radius: 20px 20px 0 0; padding: 1.5em; min-width: unset; }
+  .twin-modal-right      { padding: 1.2em; }
 }
