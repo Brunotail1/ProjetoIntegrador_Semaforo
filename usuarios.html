@@ -1,0 +1,281 @@
+<!DOCTYPE HTML>
+<!--
+	Smart Traffic Light Dashboard — Cadastro de Usuários (APS1 / Programação III)
+	Layout base: Hyperspace by HTML5 UP (html5up.net | @ajlkn)
+	Free for personal and commercial use under the CCA 3.0 license.
+-->
+<html lang="pt-BR">
+	<head>
+		<title>Usuários — Semáforo Inteligente</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="assets/css/main.css" />
+		<link rel="stylesheet" href="assets/css/fontawesome-all.min.css" />
+		<link rel="stylesheet" href="assets/css/semaforo.css" />
+		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
+	</head>
+	<body class="is-preload">
+
+		<!-- Header -->
+			<header id="header">
+				<a href="index.html" class="title">Semáforo Inteligente</a>
+				<nav>
+					<ul>
+						<li><a href="index.html">Painel</a></li>
+						<li><a href="gemeos.html">Gêmeos Digitais</a></li>
+						<li><a href="status.html">Status</a></li>
+						<li><a href="logs.html">Log</a></li>
+						<li><a href="semaforos.html">Semáforos</a></li>
+						<li><a href="usuarios.html" class="active">Usuários</a></li>
+					</ul>
+				</nav>
+			</header>
+
+		<!-- Wrapper -->
+			<div id="wrapper">
+
+				<!-- Main -->
+					<section id="main" class="wrapper">
+						<div class="inner">
+							<h1 class="major">Cadastro de Usuários</h1>
+							<p>Gerencie os usuários do sistema. Os dados são armazenados
+							localmente no navegador. Somente administradores têm acesso a esta tela.</p>
+
+							<ul class="actions">
+								<li><button id="btn-novo" class="button primary">Novo Usuário</button></li>
+							</ul>
+
+							<!-- Formulário (oculto por padrão) -->
+							<div id="form-section" hidden>
+								<h2 id="form-title">Novo Usuário</h2>
+								<div class="row gtr-uniform">
+
+									<div class="col-4 col-12-medium">
+										<div class="field">
+											<label for="f-nome">Nome *</label>
+											<input type="text" id="f-nome" name="f-nome"
+												placeholder="ex: João Silva" maxlength="60" autocomplete="off" />
+										</div>
+									</div>
+									<div class="col-4 col-12-medium">
+										<div class="field">
+											<label for="f-email">E-mail *</label>
+											<input type="email" id="f-email" name="f-email"
+												placeholder="ex: joao@exemplo.com" maxlength="80" autocomplete="off" />
+										</div>
+									</div>
+									<div class="col-4 col-12-medium">
+										<div class="field">
+											<label for="f-role">Perfil *</label>
+											<select id="f-role" name="f-role">
+												<option value="operador">Operador</option>
+												<option value="admin">Administrador</option>
+											</select>
+										</div>
+									</div>
+
+									<div class="col-4 col-12-medium" id="col-senha">
+										<div class="field">
+											<label for="f-senha">Senha *</label>
+											<input type="password" id="f-senha" name="f-senha"
+												placeholder="mínimo 4 caracteres" maxlength="64" autocomplete="new-password" />
+										</div>
+									</div>
+									<div class="col-4 col-12-medium" id="col-confirmar">
+										<div class="field">
+											<label for="f-confirmar">Confirmar Senha *</label>
+											<input type="password" id="f-confirmar" name="f-confirmar"
+												placeholder="repita a senha" maxlength="64" autocomplete="new-password" />
+										</div>
+									</div>
+
+								</div>
+
+								<p id="form-error" style="color:#fc8181;display:none;"></p>
+
+								<ul class="actions">
+									<li><button id="btn-salvar" class="button primary">Salvar</button></li>
+									<li><button id="btn-cancelar" class="button">Cancelar</button></li>
+								</ul>
+							</div>
+
+							<!-- Tabela -->
+							<p id="table-empty" style="display:none;">
+								Nenhum usuário cadastrado. Clique em <strong>Novo Usuário</strong> para adicionar.
+							</p>
+
+							<div id="table-wrapper" class="table-wrapper">
+								<table class="alt">
+									<thead>
+										<tr>
+											<th>Nome</th>
+											<th>E-mail</th>
+											<th>Perfil</th>
+											<th>Ações</th>
+										</tr>
+									</thead>
+									<tbody id="usr-tbody"></tbody>
+								</table>
+							</div>
+
+						</div>
+					</section>
+
+			</div>
+
+		<!-- Footer -->
+			<footer id="footer" class="wrapper alt">
+				<div class="inner">
+					<ul class="menu">
+						<li>APS1 — Programação III · Semáforo Inteligente</li>
+						<li>Base de layout: <a href="http://html5up.net">HTML5 UP</a></li>
+					</ul>
+				</div>
+			</footer>
+
+		<!-- Template scripts -->
+			<script src="assets/js/jquery.min.js"></script>
+			<script src="assets/js/jquery.scrollex.min.js"></script>
+			<script src="assets/js/jquery.scrolly.min.js"></script>
+			<script src="assets/js/browser.min.js"></script>
+			<script src="assets/js/breakpoints.min.js"></script>
+			<script src="assets/js/util.js"></script>
+			<script src="assets/js/main.js"></script>
+
+		<!-- Project scripts -->
+			<script src="assets/js/storage.js"></script>
+			<script src="assets/js/auth.js"></script>
+			<script>
+			// Admin-only page: redirect operadores to index
+			Auth.guardAdmin();
+
+			(function () {
+				'use strict';
+
+				let _editingId = null;
+
+				function esc(s) {
+					return String(s || '').replace(/[&<>"']/g, c =>
+						({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
+				}
+
+				const ROLE_LABEL = { admin: 'Administrador', operador: 'Operador' };
+
+				function renderTable() {
+					const users   = Storage.getUsers();
+					const tbody   = document.getElementById('usr-tbody');
+					const empty   = document.getElementById('table-empty');
+					const wrapper = document.getElementById('table-wrapper');
+
+					if (users.length === 0) {
+						empty.style.display   = '';
+						wrapper.style.display = 'none';
+						tbody.innerHTML = '';
+						return;
+					}
+
+					empty.style.display   = 'none';
+					wrapper.style.display = '';
+					tbody.innerHTML = users.map(u => `
+						<tr>
+							<td>${esc(u.nome)}</td>
+							<td>${esc(u.email)}</td>
+							<td>${esc(ROLE_LABEL[u.role] || u.role)}</td>
+							<td>
+								<button class="button small btn-edit" data-id="${esc(u.id)}">Editar</button>
+								<button class="button small btn-delete" data-id="${esc(u.id)}" style="margin-left:0.4em;">Excluir</button>
+							</td>
+						</tr>`).join('');
+
+					tbody.querySelectorAll('.btn-edit').forEach(b =>
+						b.addEventListener('click', () => openEdit(b.dataset.id)));
+					tbody.querySelectorAll('.btn-delete').forEach(b =>
+						b.addEventListener('click', () => doDelete(b.dataset.id)));
+				}
+
+				function openForm(user) {
+					_editingId = user ? user.id : null;
+					const isNew = !user;
+					document.getElementById('form-title').textContent = isNew ? 'Novo Usuário' : 'Editar Usuário';
+					document.getElementById('f-nome').value    = user ? user.nome  : '';
+					document.getElementById('f-email').value   = user ? user.email : '';
+					document.getElementById('f-role').value    = user ? user.role  : 'operador';
+					document.getElementById('f-senha').value   = '';
+					document.getElementById('f-confirmar').value = '';
+					// Mark senha as required only for new users
+					document.getElementById('col-senha').querySelector('label').textContent =
+						isNew ? 'Senha *' : 'Nova Senha (deixe em branco para manter)';
+					document.getElementById('col-confirmar').querySelector('label').textContent =
+						isNew ? 'Confirmar Senha *' : 'Confirmar Nova Senha';
+					document.getElementById('form-error').style.display = 'none';
+					document.getElementById('form-section').hidden = false;
+					document.getElementById('f-nome').focus();
+				}
+
+				function openEdit(id) {
+					const u = Storage.getUsers().find(x => x.id === id);
+					if (u) openForm(u);
+				}
+
+				function doDelete(id) {
+					const session = Auth.getSession();
+					if (session && session.id === id)
+						return alert('Você não pode excluir seu próprio usuário.');
+					const u = Storage.getUsers().find(x => x.id === id);
+					if (!window.confirm('Excluir o usuário "' + (u ? u.nome : id) + '"?')) return;
+					Storage.deleteUser(id);
+					renderTable();
+				}
+
+				function showError(msg) {
+					const el = document.getElementById('form-error');
+					el.textContent = msg;
+					el.style.display = '';
+				}
+
+				function doSave() {
+					const nome     = document.getElementById('f-nome').value.trim();
+					const email    = document.getElementById('f-email').value.trim();
+					const role     = document.getElementById('f-role').value;
+					const senha    = document.getElementById('f-senha').value;
+					const confirm  = document.getElementById('f-confirmar').value;
+					const isNew    = !_editingId;
+
+					if (!nome)  return showError('O nome é obrigatório.');
+					if (!email) return showError('O e-mail é obrigatório.');
+					if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+						return showError('Informe um e-mail válido.');
+
+					if (isNew && !senha) return showError('A senha é obrigatória para novos usuários.');
+					if (senha && senha.length < 4) return showError('A senha deve ter pelo menos 4 caracteres.');
+					if (senha && senha !== confirm) return showError('As senhas não coincidem.');
+
+					const others = Storage.getUsers().filter(u => u.id !== _editingId);
+					if (others.some(u => u.email === email))
+						return showError('Já existe um usuário com esse e-mail.');
+
+					// If editing and senha is blank, keep existing senha
+					let senhaFinal = senha;
+					if (!isNew && !senha) {
+						const existing = Storage.getUsers().find(u => u.id === _editingId);
+						senhaFinal = existing ? existing.senha : '';
+					}
+
+					Storage.saveUser({ id: _editingId || undefined, nome, email, role, senha: senhaFinal });
+					document.getElementById('form-section').hidden = true;
+					renderTable();
+				}
+
+				document.addEventListener('DOMContentLoaded', () => {
+					renderTable();
+					document.getElementById('btn-novo').addEventListener('click', () => openForm(null));
+					document.getElementById('btn-salvar').addEventListener('click', doSave);
+					document.getElementById('btn-cancelar').addEventListener('click', () => {
+						document.getElementById('form-section').hidden = true;
+					});
+				});
+			})();
+			</script>
+
+	</body>
+</html>

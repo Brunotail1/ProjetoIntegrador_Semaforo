@@ -1,0 +1,188 @@
+<!DOCTYPE HTML>
+<!--
+	Smart Traffic Light Dashboard — Painel (APS1 / Programação III)
+	Layout base: Hyperspace by HTML5 UP (html5up.net | @ajlkn)
+	Free for personal and commercial use under the CCA 3.0 license.
+-->
+<html lang="pt-BR">
+	<head>
+		<title>Semáforo Inteligente — Painel</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="assets/css/main.css" />
+		<link rel="stylesheet" href="assets/css/fontawesome-all.min.css" />
+		<link rel="stylesheet" href="assets/css/semaforo.css" />
+		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
+	</head>
+	<body class="is-preload">
+
+		<!-- Header -->
+			<header id="header">
+				<a href="index.html" class="title">Semáforo Inteligente</a>
+				<nav>
+					<ul>
+						<li><a href="index.html" class="active">Painel</a></li>
+						<li><a href="gemeos.html">Gêmeos Digitais</a></li>
+						<li><a href="status.html">Status</a></li>
+						<li><a href="logs.html">Log</a></li>
+						<li><a href="semaforos.html">Semáforos</a></li>
+						<li><a href="usuarios.html">Usuários</a></li>
+					</ul>
+				</nav>
+			</header>
+
+		<!-- Wrapper -->
+			<div id="wrapper">
+
+				<!-- Main -->
+					<section id="main" class="wrapper">
+						<div class="inner">
+							<h1 class="major">Semáforo Inteligente</h1>
+							<p>APS1 – Painel de Controle · Programação III<br />
+							Gêmeo digital de um cruzamento controlado via MQTT. Os simuladores
+							rodam localmente e publicam o estado de cada semáforo no broker.</p>
+
+							<!-- Cards de resumo -->
+							<div class="row gtr-uniform" style="margin-bottom:2em;">
+								<div class="col-4 col-12-medium">
+									<div class="box" style="text-align:center;padding:1.5em 1em;">
+										<p style="font-size:2.2em;font-weight:700;margin:0;line-height:1;" id="count-devices">—</p>
+										<p style="margin:0.3em 0 0;font-size:0.8em;text-transform:uppercase;letter-spacing:0.1em;opacity:0.6;">Semáforos Cadastrados</p>
+									</div>
+								</div>
+								<div class="col-4 col-12-medium">
+									<div class="box" style="text-align:center;padding:1.5em 1em;">
+										<p style="font-size:2.2em;font-weight:700;margin:0;line-height:1;" id="count-users">—</p>
+										<p style="margin:0.3em 0 0;font-size:0.8em;text-transform:uppercase;letter-spacing:0.1em;opacity:0.6;">Usuários Cadastrados</p>
+									</div>
+								</div>
+								<div class="col-4 col-12-medium">
+									<div class="box" style="text-align:center;padding:1.5em 1em;">
+										<div class="mqtt-status" style="justify-content:center;padding:0;">
+											<span class="status-dot js-status-dot"></span>
+											<span class="js-status-text" style="font-size:0.9em;">Desconectado</span>
+										</div>
+										<p style="margin:0.5em 0 0;font-size:0.8em;text-transform:uppercase;letter-spacing:0.1em;opacity:0.6;">Broker MQTT</p>
+										<p style="margin:0.3em 0 0;font-size:0.75em;opacity:0.45;">
+											Uptime: <span id="uptime">00:00:00</span>
+										</p>
+									</div>
+								</div>
+							</div>
+
+							<!-- Status ao vivo dos semáforos -->
+							<h3>Status ao Vivo</h3>
+							<p id="status-hint" style="font-size:0.9em;opacity:0.6;display:none;">
+								Abra <a href="gemeos.html">Gêmeos Digitais</a> na mesma aba para alimentar os dados ao vivo.
+							</p>
+							<div id="live-status-grid" class="row gtr-uniform" style="margin-bottom:2em;"></div>
+
+							<!-- Ações rápidas -->
+							<h3>Ações Rápidas</h3>
+							<ul class="actions">
+								<li><a href="gemeos.html" class="button primary">Gêmeos Digitais</a></li>
+								<li><a href="status.html" class="button">Status Detalhado</a></li>
+								<li><a href="logs.html" class="button">Log de Comandos</a></li>
+								<li><a href="semaforos.html" class="button">Semáforos</a></li>
+								<li><a href="usuarios.html" class="button" id="btn-usuarios">Usuários</a></li>
+							</ul>
+						</div>
+					</section>
+
+			</div>
+
+		<!-- Footer -->
+			<footer id="footer" class="wrapper alt">
+				<div class="inner">
+					<ul class="menu">
+						<li>APS1 — Programação III · Semáforo Inteligente</li>
+						<li>Base de layout: <a href="http://html5up.net">HTML5 UP</a></li>
+					</ul>
+				</div>
+			</footer>
+
+		<!-- Template scripts -->
+			<script src="assets/js/jquery.min.js"></script>
+			<script src="assets/js/jquery.scrollex.min.js"></script>
+			<script src="assets/js/jquery.scrolly.min.js"></script>
+			<script src="assets/js/browser.min.js"></script>
+			<script src="assets/js/breakpoints.min.js"></script>
+			<script src="assets/js/util.js"></script>
+			<script src="assets/js/main.js"></script>
+
+		<!-- Project scripts -->
+			<script src="assets/js/storage.js"></script>
+			<script src="assets/js/auth.js"></script>
+			<script src="assets/js/mqtt.min.js"></script>
+			<script src="assets/js/simulator.js"></script>
+			<script src="assets/js/mqtt-client.js"></script>
+			<script src="assets/js/app.js"></script>
+			<script>
+			(function () {
+				'use strict';
+
+				const STATE_COLORS = {
+					RED: '#b52a2a', YELLOW: '#a36200', GREEN: '#145c30',
+					BLINK_YELLOW: '#a36200', SAFETY_RED: '#6b1c1c',
+				};
+				const STATE_PT = {
+					RED: 'Vermelho', YELLOW: 'Amarelo', GREEN: 'Verde',
+					BLINK_YELLOW: 'Intermitente', SAFETY_RED: 'Segurança',
+				};
+
+				function esc(s) {
+					return String(s || '').replace(/[&<>"']/g, c =>
+						({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+				}
+
+				function refreshSummary() {
+					document.getElementById('count-devices').textContent = Storage.getDevices().length;
+					document.getElementById('count-users').textContent   = Storage.getUsers().length;
+				}
+
+				function refreshLiveStatus() {
+					let statusMap = {};
+					try { statusMap = JSON.parse(sessionStorage.getItem('deviceStatus') || '{}'); } catch {}
+
+					const grid = document.getElementById('live-status-grid');
+					const hint = document.getElementById('status-hint');
+
+					if (!Object.keys(statusMap).length) {
+						grid.innerHTML = '';
+						hint.style.display = '';
+						return;
+					}
+					hint.style.display = 'none';
+
+					grid.innerHTML = Object.entries(statusMap).map(([id, d]) => {
+						const stateLabel = STATE_PT[d.state] || d.state;
+						const color = STATE_COLORS[d.state] || '#444';
+						const age = d.ts ? Math.round((Date.now() - d.ts) / 1000) : null;
+						return `<div class="col-4 col-6-medium col-12-small">
+							<div class="box" style="padding:1em;display:flex;align-items:center;gap:1em;">
+								<span style="width:14px;height:14px;border-radius:50%;background:${color};flex-shrink:0;box-shadow:0 0 8px ${color};"></span>
+								<div style="min-width:0;">
+									<div style="font-weight:700;font-size:0.9em;">${esc(id)}</div>
+									<div style="font-size:0.78em;opacity:0.65;">${esc(stateLabel)}${age !== null ? ' · ' + age + 's atrás' : ''}</div>
+								</div>
+							</div>
+						</div>`;
+					}).join('');
+				}
+
+				document.addEventListener('DOMContentLoaded', () => {
+					refreshSummary();
+					refreshLiveStatus();
+					setInterval(refreshLiveStatus, 3000);
+
+					// Hide Usuários link for operador
+					if (!Auth.isAdmin()) {
+						const btn = document.getElementById('btn-usuarios');
+						if (btn) btn.hidden = true;
+					}
+				});
+			})();
+			</script>
+
+	</body>
+</html>

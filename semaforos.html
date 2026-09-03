@@ -1,0 +1,304 @@
+<!DOCTYPE HTML>
+<!--
+	Smart Traffic Light Dashboard — Cadastro de Semáforos (APS1 / Programação III)
+	Layout base: Hyperspace by HTML5 UP (html5up.net | @ajlkn)
+	Free for personal and commercial use under the CCA 3.0 license.
+-->
+<html lang="pt-BR">
+	<head>
+		<title>Semáforos — Semáforo Inteligente</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="assets/css/main.css" />
+		<link rel="stylesheet" href="assets/css/fontawesome-all.min.css" />
+		<link rel="stylesheet" href="assets/css/semaforo.css" />
+		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
+	</head>
+	<body class="is-preload">
+
+		<!-- Header -->
+			<header id="header">
+				<a href="index.html" class="title">Semáforo Inteligente</a>
+				<nav>
+					<ul>
+						<li><a href="index.html">Painel</a></li>
+						<li><a href="gemeos.html">Gêmeos Digitais</a></li>
+						<li><a href="status.html">Status</a></li>
+						<li><a href="logs.html">Log</a></li>
+						<li><a href="semaforos.html" class="active">Semáforos</a></li>
+						<li><a href="usuarios.html">Usuários</a></li>
+					</ul>
+				</nav>
+			</header>
+
+		<!-- Wrapper -->
+			<div id="wrapper">
+
+				<!-- Main -->
+					<section id="main" class="wrapper">
+						<div class="inner">
+							<h1 class="major">Cadastro de Semáforos</h1>
+							<p>Gerencie os dispositivos do sistema. Os semáforos cadastrados aqui
+							são carregados automaticamente pela página
+							<a href="gemeos.html">Gêmeos Digitais</a>. Se nenhum dispositivo
+							estiver cadastrado, os dois semáforos padrão são usados.</p>
+
+							<ul class="actions" id="actions-novo">
+								<li><button id="btn-novo" class="button primary">Novo Semáforo</button></li>
+							</ul>
+
+							<!-- Formulário (oculto por padrão, admin only) -->
+							<div id="form-section" hidden>
+								<h2 id="form-title">Novo Semáforo</h2>
+								<div class="row gtr-uniform">
+
+									<div class="col-4 col-12-medium">
+										<div class="field">
+											<label for="f-id">ID do dispositivo *</label>
+											<input type="text" id="f-id" name="f-id"
+												placeholder="ex: sem-a" maxlength="30" />
+										</div>
+									</div>
+									<div class="col-4 col-12-medium">
+										<div class="field">
+											<label for="f-nome">Nome *</label>
+											<input type="text" id="f-nome" name="f-nome"
+												placeholder="ex: Cruzamento Norte" maxlength="60" />
+										</div>
+									</div>
+									<div class="col-4 col-12-medium">
+										<div class="field">
+											<label for="f-localizacao">Localização</label>
+											<input type="text" id="f-localizacao" name="f-localizacao"
+												placeholder="ex: Av. Principal, 100" maxlength="80" />
+										</div>
+									</div>
+
+									<div class="col-4 col-12-medium">
+										<div class="field">
+											<label for="f-turma">Turma</label>
+											<input type="text" id="f-turma" name="f-turma"
+												placeholder="ex: TURMA01" maxlength="30" />
+										</div>
+									</div>
+									<div class="col-4 col-12-medium">
+										<div class="field">
+											<label for="f-equipe">Equipe</label>
+											<input type="text" id="f-equipe" name="f-equipe"
+												placeholder="ex: EQUIPE01" maxlength="30" />
+										</div>
+									</div>
+
+									<div class="col-4 col-12-medium">
+										<div class="field">
+											<label for="f-vermelho">Tempo Vermelho (s) *</label>
+											<input type="number" id="f-vermelho" name="f-vermelho"
+												min="1" max="60" value="5" />
+										</div>
+									</div>
+									<div class="col-4 col-12-medium">
+										<div class="field">
+											<label for="f-amarelo">Tempo Amarelo (s) *</label>
+											<input type="number" id="f-amarelo" name="f-amarelo"
+												min="1" max="60" value="3" />
+										</div>
+									</div>
+									<div class="col-4 col-12-medium">
+										<div class="field">
+											<label for="f-verde">Tempo Verde (s) *</label>
+											<input type="number" id="f-verde" name="f-verde"
+												min="1" max="60" value="5" />
+										</div>
+									</div>
+
+								</div>
+
+								<p id="form-error" style="color:#fc8181;display:none;"></p>
+
+								<ul class="actions">
+									<li><button id="btn-salvar" class="button primary">Salvar</button></li>
+									<li><button id="btn-cancelar" class="button">Cancelar</button></li>
+								</ul>
+							</div>
+
+							<!-- Tabela -->
+							<p id="table-empty" style="display:none;">
+								Nenhum semáforo cadastrado. Clique em <strong>Novo Semáforo</strong> para adicionar.
+							</p>
+
+							<div id="table-wrapper" class="table-wrapper">
+								<table class="alt">
+									<thead>
+										<tr>
+											<th>ID</th>
+											<th>Nome</th>
+											<th>Localização</th>
+											<th>Turma / Equipe</th>
+											<th>V / A / G (s)</th>
+											<th id="th-acoes">Ações</th>
+										</tr>
+									</thead>
+									<tbody id="sem-tbody"></tbody>
+								</table>
+							</div>
+
+						</div>
+					</section>
+
+			</div>
+
+		<!-- Footer -->
+			<footer id="footer" class="wrapper alt">
+				<div class="inner">
+					<ul class="menu">
+						<li>APS1 — Programação III · Semáforo Inteligente</li>
+						<li>Base de layout: <a href="http://html5up.net">HTML5 UP</a></li>
+					</ul>
+				</div>
+			</footer>
+
+		<!-- Template scripts -->
+			<script src="assets/js/jquery.min.js"></script>
+			<script src="assets/js/jquery.scrollex.min.js"></script>
+			<script src="assets/js/jquery.scrolly.min.js"></script>
+			<script src="assets/js/browser.min.js"></script>
+			<script src="assets/js/breakpoints.min.js"></script>
+			<script src="assets/js/util.js"></script>
+			<script src="assets/js/main.js"></script>
+
+		<!-- Project scripts -->
+			<script src="assets/js/storage.js"></script>
+			<script src="assets/js/auth.js"></script>
+			<script>
+			(function () {
+				'use strict';
+
+				let _editingId = null;
+				let _canEdit   = false; // set after auth check
+
+				function esc(s) {
+					return String(s || '').replace(/[&<>"']/g, c =>
+						({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
+				}
+
+				function renderTable() {
+					const devices = Storage.getDevices();
+					const tbody   = document.getElementById('sem-tbody');
+					const empty   = document.getElementById('table-empty');
+					const wrapper = document.getElementById('table-wrapper');
+
+					if (devices.length === 0) {
+						empty.style.display   = '';
+						wrapper.style.display = 'none';
+						tbody.innerHTML = '';
+						return;
+					}
+
+					empty.style.display   = 'none';
+					wrapper.style.display = '';
+					tbody.innerHTML = devices.map(d => `
+						<tr>
+							<td><code>${esc(d.id)}</code></td>
+							<td>${esc(d.nome)}</td>
+							<td>${esc(d.localizacao)}</td>
+							<td>${esc(d.turma)} / ${esc(d.equipe)}</td>
+							<td>${esc(d.tempoVermelho)}s / ${esc(d.tempoAmarelo)}s / ${esc(d.tempoVerde)}s</td>
+							<td>${_canEdit ? `
+								<button class="button small btn-edit" data-id="${esc(d.id)}">Editar</button>
+								<button class="button small btn-delete" data-id="${esc(d.id)}" style="margin-left:0.4em;">Excluir</button>
+							` : '—'}</td>
+						</tr>`).join('');
+
+					if (_canEdit) {
+						tbody.querySelectorAll('.btn-edit').forEach(b =>
+							b.addEventListener('click', () => openEdit(b.dataset.id)));
+						tbody.querySelectorAll('.btn-delete').forEach(b =>
+							b.addEventListener('click', () => doDelete(b.dataset.id)));
+					}
+				}
+
+				function openForm(device) {
+					_editingId = device ? device.id : null;
+					document.getElementById('form-title').textContent = device ? 'Editar Semáforo' : 'Novo Semáforo';
+					document.getElementById('f-id').value          = device ? device.id          : '';
+					document.getElementById('f-id').disabled       = !!device;
+					document.getElementById('f-nome').value        = device ? device.nome        : '';
+					document.getElementById('f-localizacao').value = device ? device.localizacao : '';
+					document.getElementById('f-turma').value       = device ? device.turma       : '';
+					document.getElementById('f-equipe').value      = device ? device.equipe      : '';
+					document.getElementById('f-vermelho').value    = device ? device.tempoVermelho : 5;
+					document.getElementById('f-amarelo').value     = device ? device.tempoAmarelo  : 3;
+					document.getElementById('f-verde').value       = device ? device.tempoVerde    : 5;
+					document.getElementById('form-error').style.display = 'none';
+					document.getElementById('form-section').hidden = false;
+					document.getElementById('f-id').focus();
+				}
+
+				function openEdit(id) {
+					const d = Storage.getDevices().find(x => x.id === id);
+					if (d) openForm(d);
+				}
+
+				function doDelete(id) {
+					if (!window.confirm('Excluir o semáforo "' + id + '"?')) return;
+					Storage.deleteDevice(id);
+					renderTable();
+				}
+
+				function showError(msg) {
+					const el = document.getElementById('form-error');
+					el.textContent = msg;
+					el.style.display = '';
+				}
+
+				function doSave() {
+					const id          = document.getElementById('f-id').value.trim();
+					const nome        = document.getElementById('f-nome').value.trim();
+					const localizacao = document.getElementById('f-localizacao').value.trim();
+					const turma       = document.getElementById('f-turma').value.trim();
+					const equipe      = document.getElementById('f-equipe').value.trim();
+					const verm  = parseInt(document.getElementById('f-vermelho').value, 10);
+					const amar  = parseInt(document.getElementById('f-amarelo').value, 10);
+					const verde = parseInt(document.getElementById('f-verde').value, 10);
+
+					if (!id)   return showError('O ID é obrigatório.');
+					if (!nome) return showError('O nome é obrigatório.');
+					if (isNaN(verm) || verm < 1 || verm > 60) return showError('Tempo Vermelho deve ser entre 1 e 60 segundos.');
+					if (isNaN(amar) || amar < 1 || amar > 60) return showError('Tempo Amarelo deve ser entre 1 e 60 segundos.');
+					if (isNaN(verde)|| verde< 1 || verde> 60) return showError('Tempo Verde deve ser entre 1 e 60 segundos.');
+
+					if (!_editingId) {
+						const exists = Storage.getDevices().some(d => d.id === id);
+						if (exists) return showError('Já existe um semáforo com o ID "' + id + '".');
+					}
+
+					Storage.saveDevice({ id, nome, localizacao, turma, equipe,
+						tempoVermelho: verm, tempoAmarelo: amar, tempoVerde: verde });
+					document.getElementById('form-section').hidden = true;
+					renderTable();
+				}
+
+				document.addEventListener('DOMContentLoaded', () => {
+					_canEdit = Auth.isAdmin();
+
+					if (!_canEdit) {
+						document.getElementById('actions-novo').hidden = true;
+						const thAcoes = document.getElementById('th-acoes');
+						if (thAcoes) thAcoes.textContent = '';
+					}
+
+					renderTable();
+
+					if (_canEdit) {
+						document.getElementById('btn-novo').addEventListener('click', () => openForm(null));
+						document.getElementById('btn-salvar').addEventListener('click', doSave);
+						document.getElementById('btn-cancelar').addEventListener('click', () => {
+							document.getElementById('form-section').hidden = true;
+						});
+					}
+				});
+			})();
+			</script>
+
+	</body>
+</html>

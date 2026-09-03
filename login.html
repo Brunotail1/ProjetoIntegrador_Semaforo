@@ -1,0 +1,200 @@
+<!DOCTYPE HTML>
+<!--
+	Smart Traffic Light Dashboard — Login (APS1 / Programação III)
+	Layout base: Hyperspace by HTML5 UP (html5up.net | @ajlkn)
+	Free for personal and commercial use under the CCA 3.0 license.
+-->
+<html lang="pt-BR">
+	<head>
+		<title>Login — Semáforo Inteligente</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="assets/css/main.css" />
+		<link rel="stylesheet" href="assets/css/fontawesome-all.min.css" />
+		<link rel="stylesheet" href="assets/css/semaforo.css" />
+		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
+		<style>
+			#main .inner { max-width: 720px; }
+
+			/* ── Layout duas colunas ── */
+			.login-columns {
+				display: flex;
+				gap: 2.5em;
+				align-items: flex-start;
+				flex-wrap: wrap;
+				margin-top: 1.8em;
+			}
+			.login-col-creds { flex: 1; min-width: 210px; }
+			.login-col-form  { flex: 1; min-width: 220px; }
+			.login-col-form .field { margin-bottom: 1em; }
+			.login-col-form .actions { margin-top: 1.5em; }
+
+			/* ── Demo credentials box ── */
+			#seed-info {
+				background: rgba(214,158,46,0.07);
+				border: 1px solid rgba(214,158,46,0.32);
+				border-radius: 10px;
+				padding: 1.2em 1.5em;
+			}
+			#seed-info h3 {
+				color: #d69e2e;
+				font-size: 0.7em;
+				text-transform: uppercase;
+				letter-spacing: 0.16em;
+				margin: 0 0 0.9em;
+			}
+			#seed-info p { margin: 0.35em 0; font-size: 0.88em; color: rgba(255,255,255,0.75); }
+			#seed-info code {
+				display: inline-block;
+				max-width: 100%;
+				overflow-wrap: break-word;
+				word-break: break-all;
+				background: rgba(214,158,46,0.18);
+				padding: 0.18em 0.55em;
+				border-radius: 5px;
+				font-family: 'Courier New', monospace;
+				color: #f6e05e;
+				font-size: 0.9em;
+				border: 1px solid rgba(214,158,46,0.25);
+				letter-spacing: 0.03em;
+				box-sizing: border-box;
+			}
+
+			@media (max-width: 600px) { .login-columns { flex-direction: column; } }
+		</style>
+	</head>
+	<body class="is-preload">
+
+		<!-- Header (sem nav de páginas) -->
+			<header id="header">
+				<a href="#" class="title">Semáforo Inteligente</a>
+				<nav><ul></ul></nav>
+			</header>
+
+		<!-- Wrapper -->
+			<div id="wrapper">
+
+				<!-- Main -->
+					<section id="main" class="wrapper">
+						<div class="inner">
+							<h1 class="major">Acesso ao Sistema</h1>
+							<p style="font-size:0.82em;opacity:0.55;margin-top:-0.5em;">APS1 · Programação III — Semáforo Inteligente</p>
+
+							<div class="login-columns">
+
+								<!-- Coluna esquerda: credenciais de demo -->
+								<div class="login-col-creds">
+									<div id="seed-info">
+										<h3>Credenciais de Demonstração</h3>
+										<p>E-mail:<br /><code>admin@sistema.local</code></p>
+										<p style="margin-top:0.6em;">Senha: <code>123456</code></p>
+										<p style="font-size:0.78em;opacity:0.5;margin-top:0.8em;">Administrador · acesso total ao sistema</p>
+									</div>
+								</div>
+
+								<!-- Coluna direita: formulário -->
+								<div class="login-col-form">
+									<p id="login-error" style="color:#fc8181;display:none;margin:0 0 0.8em;"></p>
+									<div class="field">
+										<label for="f-email">E-mail</label>
+										<input type="email" id="f-email" name="f-email"
+											placeholder="seu@email.com" autocomplete="username" />
+									</div>
+									<div class="field">
+										<label for="f-senha">Senha</label>
+										<input type="password" id="f-senha" name="f-senha"
+											placeholder="••••••••" autocomplete="current-password" />
+									</div>
+									<ul class="actions">
+										<li><button id="btn-login" class="button primary large">Entrar</button></li>
+									</ul>
+								</div>
+
+							</div>
+						</div>
+					</section>
+
+			</div>
+
+		<!-- Footer -->
+			<footer id="footer" class="wrapper alt">
+				<div class="inner">
+					<ul class="menu">
+						<li>APS1 — Programação III · Semáforo Inteligente</li>
+						<li>Base de layout: <a href="http://html5up.net">HTML5 UP</a></li>
+					</ul>
+				</div>
+			</footer>
+
+		<!-- Template scripts -->
+			<script src="assets/js/jquery.min.js"></script>
+			<script src="assets/js/jquery.scrollex.min.js"></script>
+			<script src="assets/js/jquery.scrolly.min.js"></script>
+			<script src="assets/js/browser.min.js"></script>
+			<script src="assets/js/breakpoints.min.js"></script>
+			<script src="assets/js/util.js"></script>
+			<script src="assets/js/main.js"></script>
+
+		<!-- Project scripts (sem auth.js — esta é a página de login) -->
+			<script src="assets/js/storage.js"></script>
+			<script>
+			(function () {
+				'use strict';
+
+				function seedAdmin() {
+					const users = Storage.getUsers();
+					const existing = users.find(u => u.email === 'admin@sistema.local');
+					if (!existing) {
+						Storage.saveUser({ nome: 'Administrador', email: 'admin@sistema.local', senha: '123456', role: 'admin' });
+					} else if (existing.senha !== '123456') {
+						existing.senha = '123456';
+						Storage.saveUser(existing);
+					}
+				}
+
+				function showError(msg) {
+					const el = document.getElementById('login-error');
+					el.textContent = msg;
+					el.style.display = '';
+				}
+
+				function doLogin() {
+					const email = document.getElementById('f-email').value.trim();
+					const senha = document.getElementById('f-senha').value;
+					if (!email || !senha) return showError('Preencha e-mail e senha.');
+
+					const user = Storage.getUsers().find(u => u.email === email && u.senha === senha);
+					if (!user) return showError('E-mail ou senha incorretos.');
+
+					try {
+						sessionStorage.setItem('session', JSON.stringify({
+							id: user.id, nome: user.nome, email: user.email, role: user.role,
+						}));
+					} catch {}
+					location.replace('index.html');
+				}
+
+				document.addEventListener('DOMContentLoaded', () => {
+					// If already logged in, skip to painel.
+					try {
+						if (JSON.parse(sessionStorage.getItem('session') || 'null')) {
+							location.replace('index.html');
+							return;
+						}
+					} catch {}
+
+					seedAdmin();
+
+					document.getElementById('btn-login').addEventListener('click', doLogin);
+					document.getElementById('f-senha').addEventListener('keydown', e => {
+						if (e.key === 'Enter') doLogin();
+					});
+					document.getElementById('f-email').addEventListener('keydown', e => {
+						if (e.key === 'Enter') document.getElementById('f-senha').focus();
+					});
+				});
+			})();
+			</script>
+
+	</body>
+</html>
