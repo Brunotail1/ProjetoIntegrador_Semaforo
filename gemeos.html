@@ -45,6 +45,88 @@
 						</div>
 					</section>
 
+				<!-- Seção 2: Simulação local (sem MQTT) -->
+					<section id="local-twin" class="wrapper">
+						<div class="inner">
+							<h2 class="major">Simulação Local</h2>
+							<p>Gêmeo digital de demonstração: este semáforo não usa o broker
+							MQTT — ele responde apenas aos botões abaixo, direto no navegador.
+							Os botões de cor fixam o estado (modo manual) e
+							<strong>Automático</strong> devolve o ciclo contínuo. O tempo de
+							cada cor é configurável em milissegundos nos campos abaixo. A RN02
+							continua valendo: saindo do verde ele sempre passa pelo amarelo
+							antes de fechar.</p>
+
+							<div class="twin-local">
+
+								<!-- Coluna esquerda: SVG (inserido por twin-local.js) -->
+								<div class="twin-local-stage" id="twin-local-stage"></div>
+
+								<!-- Coluna direita: info + controles -->
+								<div class="twin-local-panel">
+
+									<div class="twin-local-header">
+										<h3 class="twin-local-name">Semáforo Simulado</h3>
+										<span class="device-id-tag">sim-local</span>
+									</div>
+
+									<div class="twin-local-status" id="twin-local-status" data-state="RED">
+										<div class="twin-local-status-row">
+											<span class="twin-local-status-label">Estado</span>
+											<span class="twin-state-badge" id="twin-local-state">Vermelho</span>
+										</div>
+										<div class="twin-local-status-row">
+											<span class="twin-local-status-label">Tempo restante</span>
+											<span class="twin-countdown" id="twin-local-countdown">—</span>
+										</div>
+										<div class="twin-local-status-row">
+											<span class="twin-local-status-label">Modo</span>
+											<span class="twin-local-mode" id="twin-local-mode">Manual</span>
+										</div>
+									</div>
+
+									<div class="twin-local-section">
+										<span class="twin-local-section-title">Comandos</span>
+										<div class="twin-local-buttons" id="twin-local-buttons">
+											<div class="twin-local-btn-row">
+												<button type="button" class="button twin-btn twin-btn-red"    data-cmd="vermelho">Vermelho</button>
+												<button type="button" class="button twin-btn twin-btn-yellow" data-cmd="amarelo">Amarelo</button>
+												<button type="button" class="button twin-btn twin-btn-green"  data-cmd="verde">Verde</button>
+											</div>
+											<div class="twin-local-btn-row">
+												<button type="button" class="button twin-btn twin-btn-blink" data-cmd="intermitente">Intermitente</button>
+												<button type="button" class="button twin-btn twin-btn-auto"  data-cmd="automatico">Automático</button>
+											</div>
+										</div>
+									</div>
+
+									<div class="twin-local-section">
+										<span class="twin-local-section-title">Tempos de cada cor (ms)</span>
+										<div class="twin-local-timings" id="twin-local-timings">
+											<div class="twin-local-timing twin-timing-red">
+												<label for="t-local-vermelho">Vermelho</label>
+												<input type="number" id="t-local-vermelho" data-cor="red"
+													min="1000" max="60000" step="100" value="5000" />
+											</div>
+											<div class="twin-local-timing twin-timing-yellow">
+												<label for="t-local-amarelo">Amarelo</label>
+												<input type="number" id="t-local-amarelo" data-cor="yellow"
+													min="1000" max="60000" step="100" value="3000" />
+											</div>
+											<div class="twin-local-timing twin-timing-green">
+												<label for="t-local-verde">Verde</label>
+												<input type="number" id="t-local-verde" data-cor="green"
+													min="1000" max="60000" step="100" value="5000" />
+											</div>
+										</div>
+										<span class="twin-local-hint">RN05: valores limitados entre 1000 e 60000 ms.</span>
+									</div>
+
+								</div>
+							</div>
+						</div>
+					</section>
+
 			</div>
 
 			<!-- Modal: painel de detalhe do semáforo -->
@@ -113,6 +195,7 @@
 			<script src="assets/js/storage.js"></script>
 			<script src="assets/js/auth.js"></script>
 			<script src="assets/js/app.js"></script>
+			<script src="assets/js/twin-local.js"></script>
 		<script>
 		document.addEventListener('DOMContentLoaded', () => {
 			'use strict';

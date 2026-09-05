@@ -1,21 +1,5 @@
 'use strict';
 
-/*
- * app.js — Boot, crossing coordination, DOM binding and the command log for the
- * Smart Traffic Light dashboard (APS1 - Programação III).
- *
- * Business rules enforced here:
- *   RN01 — the two semaphores are never GREEN at the same time.
- *   RN02 — GREEN → RED always passes through YELLOW (in simulator.js).
- *   RN03 — a safety interval separates one semaphore's RED from the partner's GREEN.
- *   RN04 — loss of heartbeat / MQTT connection drops devices to the fail-safe state.
- *   RN05 — timing reconfiguration is clamped to [min, max] (in simulator.js).
- *   RN06 — the dashboard runs local-first: simulators start before MQTT connects.
- *   RN07 — every real transition is written to the command log.
- *   RN09 — a reported light failure forces the fail-safe (blinking yellow) state.
- *   RN10 — commands that would violate RN01 are rejected.
- */
-
 // ── Twin SVG builder ─────────────────────────────────────────────────────────
 function buildTwinHTML(id, label) {
 	const s = id.replace(/[^a-zA-Z0-9_-]/g, '_');

@@ -373,3 +373,229 @@ circle.twin-green.ligado {
   .twin-modal-left       { border-radius: 20px 20px 0 0; padding: 1.5em; min-width: unset; }
   .twin-modal-right      { padding: 1.2em; }
 }
+
+
+/* ── Gêmeo digital local (seção "Simulação Local", sem MQTT) ─────── */
+
+/* h2.major não existe no tema — replica o sublinhado do h1.major */
+#local-twin h2.major {
+  position: relative;
+  margin: 0 0 1.3em 0;
+  padding-bottom: 0.35em;
+}
+#local-twin h2.major::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 0.05em;
+  border-radius: 0.2em;
+  background-image: linear-gradient(to right, #5e42a6, #b74e91);
+}
+
+.twin-local {
+  display: flex;
+  align-items: stretch;
+  background: #16162a;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  overflow: hidden;
+  max-width: 740px;
+  box-shadow: 0 24px 70px rgba(0,0,0,0.45);
+}
+
+/* Coluna esquerda: só o SVG (label/badge/countdown vão no painel) */
+.twin-local-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.2em 1.8em;
+  background: rgba(0,0,0,0.28);
+  flex-shrink: 0;
+  min-width: 200px;
+}
+.twin-local-stage .semaforo-svg { width: 140px; }
+.twin-local-stage .twin-semaforo { cursor: default; }
+.twin-local-stage .twin-semaforo:hover { transform: none; filter: none; }
+.twin-local-stage .twin-label,
+.twin-local-stage .twin-state-badge,
+.twin-local-stage .twin-countdown { display: none; }
+
+/* Coluna direita: identificação, estado e botões */
+.twin-local-panel {
+  flex: 1;
+  min-width: 0;
+  padding: 2em;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1em;
+}
+
+.twin-local-header {
+  display: flex;
+  align-items: center;
+  gap: 0.65em;
+  flex-wrap: wrap;
+}
+.twin-local-name {
+  margin: 0;
+  font-size: 1.1em;
+  font-weight: 700;
+  color: #fff;
+}
+
+.twin-local-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45em;
+  padding: 0.9em 1.1em;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+}
+.twin-local-status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+}
+.twin-local-status-label {
+  min-width: 110px;
+  font-size: 0.72em;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.4);
+}
+.twin-local-status .twin-state-badge { margin-top: 0; }
+.twin-local-status .twin-countdown   { margin-top: 0; font-size: 1.15em; color: rgba(255,255,255,0.7); }
+.twin-local-mode {
+  font-size: 0.85em;
+  font-weight: 700;
+  color: rgba(255,255,255,0.72);
+}
+
+.twin-local-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+}
+.twin-local-section-title {
+  font-size: 0.63em;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: rgba(255,255,255,0.35);
+}
+
+/* ── Botões de comando ───────────────────────────────────────────── */
+.twin-local-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+}
+.twin-local-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6em;
+}
+
+/* Encolhe o botão do tema (o padrão é largo demais para o painel) */
+.twin-local-buttons .twin-btn {
+  font-size: 0.5em;
+  height: calc(4.5em + 2px);
+  line-height: 4.5em;
+  padding: 0 2.4em;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+/* Cores por comando — o tema usa !important em border-color e color */
+.twin-local-buttons .twin-btn-red    { border-color: rgba(229,62,62,0.5)  !important; color: #f7bcbc !important; }
+.twin-local-buttons .twin-btn-yellow { border-color: rgba(214,158,46,0.5) !important; color: #f2dda6 !important; }
+.twin-local-buttons .twin-btn-green  { border-color: rgba(56,161,105,0.5) !important; color: #a9e0c2 !important; }
+
+.twin-local-buttons .twin-btn-red:hover    { border-color: #e53e3e !important; }
+.twin-local-buttons .twin-btn-yellow:hover { border-color: #d69e2e !important; }
+.twin-local-buttons .twin-btn-green:hover  { border-color: #38a169 !important; }
+
+/* Estado atual em destaque */
+.twin-local-buttons .twin-btn.is-active {
+  background-color: rgba(255,255,255,0.14);
+  border-color: rgba(255,255,255,0.5) !important;
+  color: #fff !important;
+}
+.twin-local-buttons .twin-btn-red.is-active {
+  background-color: #b52a2a;
+  border-color: #e53e3e !important;
+}
+.twin-local-buttons .twin-btn-yellow.is-active {
+  background-color: #a36200;
+  border-color: #d69e2e !important;
+}
+.twin-local-buttons .twin-btn-green.is-active {
+  background-color: #145c30;
+  border-color: #38a169 !important;
+}
+.twin-local-buttons .twin-btn.is-active::after { display: none; }
+
+
+/* ── Inputs de tempo (ms) ────────────────────────────────────────── */
+.twin-local-timings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6em;
+}
+.twin-local-timing {
+  flex: 1 1 100px;
+  min-width: 0;
+}
+.twin-local-timing label {
+  display: block;
+  margin: 0 0 0.35em;
+  font-size: 0.62em;
+  font-weight: 800;
+  line-height: 1.4;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.42);
+}
+.twin-timing-red    label { color: rgba(247,188,188,0.75); }
+.twin-timing-yellow label { color: rgba(242,221,166,0.75); }
+.twin-timing-green  label { color: rgba(169,224,194,0.75); }
+
+.twin-local-timings input[type="number"] {
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 2.6em;
+  padding: 0 0.7em;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  color: rgba(255,255,255,0.85);
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.9em;
+  outline: 0;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.twin-local-timings input[type="number"]:focus {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 1px #ffffff;
+}
+.twin-local-timings input[type="number"]::-webkit-outer-spin-button,
+.twin-local-timings input[type="number"]::-webkit-inner-spin-button {
+  opacity: 0.4;
+}
+
+.twin-local-hint {
+  font-size: 0.7em;
+  color: rgba(255,255,255,0.32);
+}
+
+/* ── Responsivo ──────────────────────────────────────────────────── */
+@media (max-width: 736px) {
+  .twin-local { flex-direction: column; }
+  .twin-local-stage { padding: 1.6em; min-width: 0; }
+  .twin-local-panel { padding: 1.4em; }
+  .twin-local-btn-row .twin-btn { flex: 1 1 auto; padding: 0 1.6em; }
+}
