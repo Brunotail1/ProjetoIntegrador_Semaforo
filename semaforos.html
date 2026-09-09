@@ -165,131 +165,143 @@
 			<script src="assets/js/main.js"></script>
 
 		<!-- Project scripts -->
-			<script src="assets/js/storage.js"></script>
-			<script src="assets/js/auth.js"></script>
+			<script src="assets/js/utilitarios.js"></script>
+			<script src="assets/js/armazenamento.js"></script>
+			<script src="assets/js/autenticacao.js"></script>
 			<script>
 			(function () {
 				'use strict';
 
-				let _editingId = null;
-				let _canEdit   = false; // set after auth check
+				const TEMPO_MINIMO_SEGUNDOS = 1;
+				const TEMPO_MAXIMO_SEGUNDOS = 60;
 
-				function esc(s) {
-					return String(s || '').replace(/[&<>"']/g, c =>
-						({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
-				}
+				let idEmEdicao = null;
+				let podeEditar = false; // definido depois da checagem de perfil
 
-				function renderTable() {
-					const devices = Storage.getDevices();
-					const tbody   = document.getElementById('sem-tbody');
-					const empty   = document.getElementById('table-empty');
-					const wrapper = document.getElementById('table-wrapper');
+				// Redesenha a tabela de semáforos (ou o aviso de lista vazia)
+				function renderizarTabela() {
+					const dispositivos = Armazenamento.listarDispositivos();
+					const corpoTabela  = document.getElementById('sem-tbody');
+					const avisoVazio   = document.getElementById('table-empty');
+					const areaDaTabela = document.getElementById('table-wrapper');
 
-					if (devices.length === 0) {
-						empty.style.display   = '';
-						wrapper.style.display = 'none';
-						tbody.innerHTML = '';
+					if (dispositivos.length === 0) {
+						avisoVazio.style.display   = '';
+						areaDaTabela.style.display = 'none';
+						corpoTabela.innerHTML = '';
 						return;
 					}
 
-					empty.style.display   = 'none';
-					wrapper.style.display = '';
-					tbody.innerHTML = devices.map(d => `
+					avisoVazio.style.display   = 'none';
+					areaDaTabela.style.display = '';
+					corpoTabela.innerHTML = dispositivos.map((dispositivo) => `
 						<tr>
-							<td><code>${esc(d.id)}</code></td>
-							<td>${esc(d.nome)}</td>
-							<td>${esc(d.localizacao)}</td>
-							<td>${esc(d.turma)} / ${esc(d.equipe)}</td>
-							<td>${esc(d.tempoVermelho)}s / ${esc(d.tempoAmarelo)}s / ${esc(d.tempoVerde)}s</td>
-							<td>${_canEdit ? `
-								<button class="button small btn-edit" data-id="${esc(d.id)}">Editar</button>
-								<button class="button small btn-delete" data-id="${esc(d.id)}" style="margin-left:0.4em;">Excluir</button>
+							<td><code>${escaparHtml(dispositivo.id)}</code></td>
+							<td>${escaparHtml(dispositivo.nome)}</td>
+							<td>${escaparHtml(dispositivo.localizacao)}</td>
+							<td>${escaparHtml(dispositivo.turma)} / ${escaparHtml(dispositivo.equipe)}</td>
+							<td>${escaparHtml(dispositivo.tempoVermelho)}s / ${escaparHtml(dispositivo.tempoAmarelo)}s / ${escaparHtml(dispositivo.tempoVerde)}s</td>
+							<td>${podeEditar ? `
+								<button class="button small btn-edit" data-id="${escaparHtml(dispositivo.id)}">Editar</button>
+								<button class="button small btn-delete" data-id="${escaparHtml(dispositivo.id)}" style="margin-left:0.4em;">Excluir</button>
 							` : '—'}</td>
 						</tr>`).join('');
 
-					if (_canEdit) {
-						tbody.querySelectorAll('.btn-edit').forEach(b =>
-							b.addEventListener('click', () => openEdit(b.dataset.id)));
-						tbody.querySelectorAll('.btn-delete').forEach(b =>
-							b.addEventListener('click', () => doDelete(b.dataset.id)));
+					if (podeEditar) {
+						corpoTabela.querySelectorAll('.btn-edit').forEach((botao) =>
+							botao.addEventListener('click', () => abrirFormularioDeEdicao(botao.dataset.id)));
+						corpoTabela.querySelectorAll('.btn-delete').forEach((botao) =>
+							botao.addEventListener('click', () => excluirSemaforo(botao.dataset.id)));
 					}
 				}
 
-				function openForm(device) {
-					_editingId = device ? device.id : null;
-					document.getElementById('form-title').textContent = device ? 'Editar Semáforo' : 'Novo Semáforo';
-					document.getElementById('f-id').value          = device ? device.id          : '';
-					document.getElementById('f-id').disabled       = !!device;
-					document.getElementById('f-nome').value        = device ? device.nome        : '';
-					document.getElementById('f-localizacao').value = device ? device.localizacao : '';
-					document.getElementById('f-turma').value       = device ? device.turma       : '';
-					document.getElementById('f-equipe').value      = device ? device.equipe      : '';
-					document.getElementById('f-vermelho').value    = device ? device.tempoVermelho : 5;
-					document.getElementById('f-amarelo').value     = device ? device.tempoAmarelo  : 3;
-					document.getElementById('f-verde').value       = device ? device.tempoVerde    : 5;
+				// Abre o formulário em branco (novo) ou preenchido (edição)
+				function abrirFormulario(dispositivo) {
+					idEmEdicao = dispositivo ? dispositivo.id : null;
+
+					document.getElementById('form-title').textContent = dispositivo ? 'Editar Semáforo' : 'Novo Semáforo';
+					document.getElementById('f-id').value          = dispositivo ? dispositivo.id            : '';
+					document.getElementById('f-id').disabled       = !!dispositivo; // o id é a chave, não muda
+					document.getElementById('f-nome').value        = dispositivo ? dispositivo.nome          : '';
+					document.getElementById('f-localizacao').value = dispositivo ? dispositivo.localizacao   : '';
+					document.getElementById('f-turma').value       = dispositivo ? dispositivo.turma         : '';
+					document.getElementById('f-equipe').value      = dispositivo ? dispositivo.equipe        : '';
+					document.getElementById('f-vermelho').value    = dispositivo ? dispositivo.tempoVermelho : 5;
+					document.getElementById('f-amarelo').value     = dispositivo ? dispositivo.tempoAmarelo  : 3;
+					document.getElementById('f-verde').value       = dispositivo ? dispositivo.tempoVerde    : 5;
+
 					document.getElementById('form-error').style.display = 'none';
 					document.getElementById('form-section').hidden = false;
 					document.getElementById('f-id').focus();
 				}
 
-				function openEdit(id) {
-					const d = Storage.getDevices().find(x => x.id === id);
-					if (d) openForm(d);
+				function abrirFormularioDeEdicao(id) {
+					const dispositivo = Armazenamento.listarDispositivos().find((d) => d.id === id);
+					if (dispositivo) abrirFormulario(dispositivo);
 				}
 
-				function doDelete(id) {
+				function excluirSemaforo(id) {
 					if (!window.confirm('Excluir o semáforo "' + id + '"?')) return;
-					Storage.deleteDevice(id);
-					renderTable();
+					Armazenamento.excluirDispositivo(id);
+					renderizarTabela();
 				}
 
-				function showError(msg) {
-					const el = document.getElementById('form-error');
-					el.textContent = msg;
-					el.style.display = '';
+				function mostrarErro(mensagem) {
+					const elemento = document.getElementById('form-error');
+					elemento.textContent = mensagem;
+					elemento.style.display = '';
 				}
 
-				function doSave() {
+				// Confere se o tempo informado é um inteiro dentro dos limites da RN05
+				function tempoEhValido(segundos) {
+					return !isNaN(segundos) && segundos >= TEMPO_MINIMO_SEGUNDOS && segundos <= TEMPO_MAXIMO_SEGUNDOS;
+				}
+
+				// Valida os campos e grava o semáforo
+				function salvarSemaforo() {
 					const id          = document.getElementById('f-id').value.trim();
 					const nome        = document.getElementById('f-nome').value.trim();
 					const localizacao = document.getElementById('f-localizacao').value.trim();
 					const turma       = document.getElementById('f-turma').value.trim();
 					const equipe      = document.getElementById('f-equipe').value.trim();
-					const verm  = parseInt(document.getElementById('f-vermelho').value, 10);
-					const amar  = parseInt(document.getElementById('f-amarelo').value, 10);
-					const verde = parseInt(document.getElementById('f-verde').value, 10);
 
-					if (!id)   return showError('O ID é obrigatório.');
-					if (!nome) return showError('O nome é obrigatório.');
-					if (isNaN(verm) || verm < 1 || verm > 60) return showError('Tempo Vermelho deve ser entre 1 e 60 segundos.');
-					if (isNaN(amar) || amar < 1 || amar > 60) return showError('Tempo Amarelo deve ser entre 1 e 60 segundos.');
-					if (isNaN(verde)|| verde< 1 || verde> 60) return showError('Tempo Verde deve ser entre 1 e 60 segundos.');
+					const tempoVermelho = parseInt(document.getElementById('f-vermelho').value, 10);
+					const tempoAmarelo  = parseInt(document.getElementById('f-amarelo').value, 10);
+					const tempoVerde    = parseInt(document.getElementById('f-verde').value, 10);
 
-					if (!_editingId) {
-						const exists = Storage.getDevices().some(d => d.id === id);
-						if (exists) return showError('Já existe um semáforo com o ID "' + id + '".');
+					if (!id)   return mostrarErro('O ID é obrigatório.');
+					if (!nome) return mostrarErro('O nome é obrigatório.');
+					if (!tempoEhValido(tempoVermelho)) return mostrarErro('Tempo Vermelho deve ser entre 1 e 60 segundos.');
+					if (!tempoEhValido(tempoAmarelo))  return mostrarErro('Tempo Amarelo deve ser entre 1 e 60 segundos.');
+					if (!tempoEhValido(tempoVerde))    return mostrarErro('Tempo Verde deve ser entre 1 e 60 segundos.');
+
+					if (!idEmEdicao) {
+						const jaExiste = Armazenamento.listarDispositivos().some((d) => d.id === id);
+						if (jaExiste) return mostrarErro('Já existe um semáforo com o ID "' + id + '".');
 					}
 
-					Storage.saveDevice({ id, nome, localizacao, turma, equipe,
-						tempoVermelho: verm, tempoAmarelo: amar, tempoVerde: verde });
+					Armazenamento.salvarDispositivo({
+						id, nome, localizacao, turma, equipe, tempoVermelho, tempoAmarelo, tempoVerde,
+					});
 					document.getElementById('form-section').hidden = true;
-					renderTable();
+					renderizarTabela();
 				}
 
 				document.addEventListener('DOMContentLoaded', () => {
-					_canEdit = Auth.isAdmin();
+					podeEditar = Autenticacao.ehAdministrador();
 
-					if (!_canEdit) {
+					// Operador só consulta: esconde o botão de cadastro e a coluna de ações
+					if (!podeEditar) {
 						document.getElementById('actions-novo').hidden = true;
-						const thAcoes = document.getElementById('th-acoes');
-						if (thAcoes) thAcoes.textContent = '';
+						const colunaAcoes = document.getElementById('th-acoes');
+						if (colunaAcoes) colunaAcoes.textContent = '';
 					}
 
-					renderTable();
+					renderizarTabela();
 
-					if (_canEdit) {
-						document.getElementById('btn-novo').addEventListener('click', () => openForm(null));
-						document.getElementById('btn-salvar').addEventListener('click', doSave);
+					if (podeEditar) {
+						document.getElementById('btn-novo').addEventListener('click', () => abrirFormulario(null));
+						document.getElementById('btn-salvar').addEventListener('click', salvarSemaforo);
 						document.getElementById('btn-cancelar').addEventListener('click', () => {
 							document.getElementById('form-section').hidden = true;
 						});

@@ -53,9 +53,7 @@
 							MQTT — ele responde apenas aos botões abaixo, direto no navegador.
 							Os botões de cor fixam o estado (modo manual) e
 							<strong>Automático</strong> devolve o ciclo contínuo. O tempo de
-							cada cor é configurável em milissegundos nos campos abaixo. A RN02
-							continua valendo: saindo do verde ele sempre passa pelo amarelo
-							antes de fechar.</p>
+							cada cor é configurável em milissegundos nos campos abaixo.</p>
 
 							<div class="twin-local">
 
@@ -105,17 +103,17 @@
 										<div class="twin-local-timings" id="twin-local-timings">
 											<div class="twin-local-timing twin-timing-red">
 												<label for="t-local-vermelho">Vermelho</label>
-												<input type="number" id="t-local-vermelho" data-cor="red"
+												<input type="number" id="t-local-vermelho"
 													min="1000" max="60000" step="100" value="5000" />
 											</div>
 											<div class="twin-local-timing twin-timing-yellow">
 												<label for="t-local-amarelo">Amarelo</label>
-												<input type="number" id="t-local-amarelo" data-cor="yellow"
+												<input type="number" id="t-local-amarelo"
 													min="1000" max="60000" step="100" value="3000" />
 											</div>
 											<div class="twin-local-timing twin-timing-green">
 												<label for="t-local-verde">Verde</label>
-												<input type="number" id="t-local-verde" data-cor="green"
+												<input type="number" id="t-local-verde"
 													min="1000" max="60000" step="100" value="5000" />
 											</div>
 										</div>
@@ -189,99 +187,113 @@
 			<script src="assets/js/main.js"></script>
 
 		<!-- Project scripts -->
+			<script src="assets/js/utilitarios.js"></script>
 			<script src="assets/js/mqtt.min.js"></script>
-			<script src="assets/js/simulator.js"></script>
-			<script src="assets/js/mqtt-client.js"></script>
-			<script src="assets/js/storage.js"></script>
-			<script src="assets/js/auth.js"></script>
-			<script src="assets/js/app.js"></script>
-			<script src="assets/js/twin-local.js"></script>
+			<script src="assets/js/simulador.js"></script>
+			<script src="assets/js/cliente-mqtt.js"></script>
+			<script src="assets/js/armazenamento.js"></script>
+			<script src="assets/js/autenticacao.js"></script>
+			<script src="assets/js/aplicacao.js"></script>
+			<script src="assets/js/gemeo-local.js"></script>
 		<script>
+		/*
+		 * Modal de detalhe: abre ao clicar num semáforo da intersecção e mostra
+		 * o SVG ampliado, o estado atual e o tópico MQTT de comando do device.
+		 */
 		document.addEventListener('DOMContentLoaded', () => {
 			'use strict';
-			const modal       = document.getElementById('twin-modal');
-			const body        = document.getElementById('twin-modal-body');
-			const btnX        = document.getElementById('twin-modal-close');
-			const elName      = document.getElementById('modal-dev-name');
-			const elDevId     = document.getElementById('modal-dev-id');
-			const elBadge     = document.getElementById('modal-state-badge');
-			const elCdown     = document.getElementById('modal-countdown');
-			const elTopic     = document.getElementById('modal-mqtt-topic');
-			const elStateCont = document.getElementById('modal-state-container');
-			let _activeId     = null;
 
-			function syncState(id, state) {
-				// Atualiza LEDs no SVG
-				const el = document.getElementById('twin-modal-' + id);
-				if (el) {
-					el.dataset.state = state;
-					el.querySelectorAll('.twin-led').forEach(l => l.classList.remove('ligado'));
-					el.classList.remove('blink-yellow');
-					if (state === 'BLINK_YELLOW') {
-						el.classList.add('blink-yellow');
+			const modal          = document.getElementById('twin-modal');
+			const areaDoSvg      = document.getElementById('twin-modal-body');
+			const botaoFechar    = document.getElementById('twin-modal-close');
+			const elNome         = document.getElementById('modal-dev-name');
+			const elIdDispositivo = document.getElementById('modal-dev-id');
+			const elEmblemaEstado = document.getElementById('modal-state-badge');
+			const elContagem     = document.getElementById('modal-countdown');
+			const elTopico       = document.getElementById('modal-mqtt-topic');
+			const elBlocoStatus  = document.getElementById('modal-state-container');
+
+			let idDispositivoAberto = null;
+
+			// Espelha o estado do semáforo no SVG ampliado e no painel da direita
+			function sincronizarEstado(idDispositivo, estado) {
+				const elemento = document.getElementById('twin-modal-' + idDispositivo);
+				if (elemento) {
+					elemento.dataset.state = estado;
+					elemento.querySelectorAll('.twin-led').forEach((led) => led.classList.remove('ligado'));
+					elemento.classList.remove('blink-yellow');
+
+					if (estado === 'BLINK_YELLOW') {
+						elemento.classList.add('blink-yellow');
 					} else {
-						const map = { RED: 'twin-red', YELLOW: 'twin-yellow', GREEN: 'twin-green', SAFETY_RED: 'twin-red' };
-						const led = el.querySelector('.' + (map[state] || ''));
+						const CLASSE_DO_LED = { RED: 'twin-red', YELLOW: 'twin-yellow', GREEN: 'twin-green' };
+						const led = elemento.querySelector('.' + (CLASSE_DO_LED[estado] || ''));
 						if (led) led.classList.add('ligado');
 					}
 				}
-				// Atualiza painel direito
-				const label = (STATE_LABEL && STATE_LABEL[state]) ? STATE_LABEL[state] : state;
-				if (elBadge)     { elBadge.textContent = label; }
-				if (elStateCont) { elStateCont.dataset.state = state; }
+
+				if (elEmblemaEstado) elEmblemaEstado.textContent = ROTULO_ESTADO[estado] || estado;
+				if (elBlocoStatus)   elBlocoStatus.dataset.state = estado;
 			}
 
-			function openModal(id) {
-				_activeId = id;
-				const d     = window.Storage ? Storage.getDevices().find(x => x.id === id) : null;
-				const name  = (d && d.nome) ? d.nome : (CONFIG.deviceLabels[id] || id);
-				const topic = 'aps1/semaforo/' + CONFIG.turma + '/' + CONFIG.equipe + '/' + id + '/comando';
+			function abrirModal(idDispositivo) {
+				idDispositivoAberto = idDispositivo;
 
-				body.innerHTML = buildTwinHTML('modal-' + id, name);
+				const dispositivo = window.Armazenamento
+					? Armazenamento.listarDispositivos().find((d) => d.id === idDispositivo)
+					: null;
+				const nome = (dispositivo && dispositivo.nome)
+					? dispositivo.nome
+					: (CONFIGURACAO.rotulosDispositivos[idDispositivo] || idDispositivo);
+				const topico = `aps1/semaforo/${CONFIGURACAO.turma}/${CONFIGURACAO.equipe}/${idDispositivo}/comando`;
 
-				if (elName)  elName.textContent  = name;
-				if (elDevId) elDevId.textContent  = id;
-				if (elTopic) elTopic.textContent  = topic;
+				areaDoSvg.innerHTML = montarHtmlGemeo('modal-' + idDispositivo, nome);
 
-				const sem = semaphores[id];
-				if (sem) syncState(id, sem.state);
+				if (elNome)          elNome.textContent = nome;
+				if (elIdDispositivo) elIdDispositivo.textContent = idDispositivo;
+				if (elTopico)        elTopico.textContent = topico;
+
+				const semaforo = semaforos[idDispositivo];
+				if (semaforo) sincronizarEstado(idDispositivo, semaforo.estado);
 
 				modal.hidden = false;
 
-				if (sem && !sem._modalWrapped) {
-					const orig = sem.onStateChange;
-					sem.onStateChange = (devId, newState, prevState) => {
-						orig(devId, newState, prevState);
-						if (_activeId === devId) syncState(devId, newState);
+				// Encadeia o callback do simulador uma única vez por dispositivo, pro
+				// modal acompanhar as trocas de cor sem substituir o comportamento original
+				if (semaforo && !semaforo._callbackDoModalLigado) {
+					const callbackOriginal = semaforo.aoMudarEstado;
+					semaforo.aoMudarEstado = (id, novoEstado, estadoAnterior) => {
+						callbackOriginal(id, novoEstado, estadoAnterior);
+						if (idDispositivoAberto === id) sincronizarEstado(id, novoEstado);
 					};
-					sem._modalWrapped = true;
+					semaforo._callbackDoModalLigado = true;
 				}
 			}
 
-			function closeModal() {
+			function fecharModal() {
 				modal.hidden = true;
-				_activeId = null;
+				idDispositivoAberto = null;
 			}
 
-			// Countdown dedicado
+			// Contagem regressiva própria do modal
 			setInterval(() => {
-				if (!_activeId || modal.hidden) return;
-				const sem = semaphores[_activeId];
-				if (!sem || !elCdown) return;
-				elCdown.textContent = (sem.state === 'BLINK_YELLOW' || sem.state === 'SAFETY_RED')
+				if (!idDispositivoAberto || modal.hidden) return;
+				const semaforo = semaforos[idDispositivoAberto];
+				if (!semaforo || !elContagem) return;
+				elContagem.textContent = semaforo.estado === 'BLINK_YELLOW'
 					? '—'
-					: Math.ceil(sem.remainingMs / 1000) + 's';
+					: Math.ceil(semaforo.tempoRestanteMs / 1000) + 's';
 			}, 200);
 
-			// Clique nos semáforos da intersecção
-			document.querySelectorAll('.twin-intersection .twin-semaforo').forEach(el => {
-				el.addEventListener('click', () => openModal(el.id.replace('twin-', '')));
+			// Clique em qualquer semáforo da intersecção abre o modal
+			document.querySelectorAll('.twin-intersection .twin-semaforo').forEach((elemento) => {
+				elemento.addEventListener('click', () => abrirModal(elemento.id.replace('twin-', '')));
 			});
 
-			// Fechar: ×, backdrop, Escape
-			btnX.addEventListener('click', closeModal);
-			modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
-			document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+			// Fechar pelo ×, pelo fundo escuro ou pelo Esc
+			botaoFechar.addEventListener('click', fecharModal);
+			modal.addEventListener('click', (evento) => { if (evento.target === modal) fecharModal(); });
+			document.addEventListener('keydown', (evento) => { if (evento.key === 'Escape') fecharModal(); });
 		});
 		</script>
 

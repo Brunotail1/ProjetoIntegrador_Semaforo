@@ -136,72 +136,79 @@
 			<script src="assets/js/main.js"></script>
 
 		<!-- Project scripts (sem auth.js — esta é a página de login) -->
-			<script src="assets/js/storage.js"></script>
+			<script src="assets/js/utilitarios.js"></script>
+			<script src="assets/js/armazenamento.js"></script>
 			<script>
 			(function () {
 				'use strict';
 
-				// Cria usuário admin padrão se não existir
-				function seedAdmin() {
-					const users = Storage.getUsers();
-					const existing = users.find(u => u.email === 'admin@sistema.local');
-					if (!existing) {
-						// Cria admin com senha 123456
-						Storage.saveUser({ nome: 'Administrador', email: 'admin@sistema.local', senha: '123456', role: 'admin' });
-					} else if (existing.senha !== '123456') {
-						// Garante que senha sempre seja 123456
-						existing.senha = '123456';
-						Storage.saveUser(existing);
+				const CHAVE_SESSAO = 'sessao';
+				const EMAIL_ADMIN_PADRAO = 'admin@sistema.local';
+				const SENHA_ADMIN_PADRAO = '123456';
+
+				// Cria (ou repõe) o usuário administrador de demonstração
+				function criarAdministradorPadrao() {
+					const usuarios = Armazenamento.listarUsuarios();
+					const existente = usuarios.find((u) => u.email === EMAIL_ADMIN_PADRAO);
+
+					if (!existente) {
+						Armazenamento.salvarUsuario({
+							nome: 'Administrador',
+							email: EMAIL_ADMIN_PADRAO,
+							senha: SENHA_ADMIN_PADRAO,
+							role: 'admin',
+						});
+					} else if (existente.senha !== SENHA_ADMIN_PADRAO) {
+						// Garante que a senha da demo continue valendo
+						existente.senha = SENHA_ADMIN_PADRAO;
+						Armazenamento.salvarUsuario(existente);
 					}
 				}
 
-				// Mostra mensagem de erro embaixo do formulário
-				function showError(msg) {
-					const el = document.getElementById('login-error');
-					el.textContent = msg;
-					el.style.display = '';
+				// Mostra a mensagem de erro embaixo do formulário
+				function mostrarErro(mensagem) {
+					const elemento = document.getElementById('login-error');
+					elemento.textContent = mensagem;
+					elemento.style.display = '';
 				}
 
-				// Processa o login
-				function doLogin() {
+				// Confere as credenciais e abre a sessão
+				function fazerLogin() {
 					const email = document.getElementById('f-email').value.trim();
 					const senha = document.getElementById('f-senha').value;
-					if (!email || !senha) return showError('Preencha e-mail e senha.');
+					if (!email || !senha) return mostrarErro('Preencha e-mail e senha.');
 
-					// Busca usuário com email e senha exatos (sem hash)
-					const user = Storage.getUsers().find(u => u.email === email && u.senha === senha);
-					if (!user) return showError('E-mail ou senha incorretos.');
+					// Busca o usuário com e-mail e senha exatos (sem hash)
+					const usuario = Armazenamento.listarUsuarios()
+						.find((u) => u.email === email && u.senha === senha);
+					if (!usuario) return mostrarErro('E-mail ou senha incorretos.');
 
-					// Salva sessão no sessionStorage
 					try {
-						sessionStorage.setItem('session', JSON.stringify({
-							id: user.id, nome: user.nome, email: user.email, role: user.role,
+						sessionStorage.setItem(CHAVE_SESSAO, JSON.stringify({
+							id: usuario.id, nome: usuario.nome, email: usuario.email, role: usuario.role,
 						}));
 					} catch {}
-					
-					// Redireciona pro painel
+
 					location.replace('index.html');
 				}
 
 				document.addEventListener('DOMContentLoaded', () => {
-					// Se já tá logado, pula pro painel
+					// Quem já está logado pula direto pro painel
 					try {
-						if (JSON.parse(sessionStorage.getItem('session') || 'null')) {
+						if (JSON.parse(sessionStorage.getItem(CHAVE_SESSAO) || 'null')) {
 							location.replace('index.html');
 							return;
 						}
 					} catch {}
 
-					// Cria admin se necessário
-					seedAdmin();
+					criarAdministradorPadrao();
 
-					// Eventos do formulário
-					document.getElementById('btn-login').addEventListener('click', doLogin);
-					document.getElementById('f-senha').addEventListener('keydown', e => {
-						if (e.key === 'Enter') doLogin();
+					document.getElementById('btn-login').addEventListener('click', fazerLogin);
+					document.getElementById('f-senha').addEventListener('keydown', (evento) => {
+						if (evento.key === 'Enter') fazerLogin();
 					});
-					document.getElementById('f-email').addEventListener('keydown', e => {
-						if (e.key === 'Enter') document.getElementById('f-senha').focus();
+					document.getElementById('f-email').addEventListener('keydown', (evento) => {
+						if (evento.key === 'Enter') document.getElementById('f-senha').focus();
 					});
 				});
 			})();

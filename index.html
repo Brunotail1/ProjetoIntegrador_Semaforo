@@ -103,59 +103,53 @@
 	<script src="assets/js/main.js"></script>
 
 	<!-- Project scripts -->
-	<script src="assets/js/storage.js"></script>
-	<script src="assets/js/auth.js"></script>
+	<script src="assets/js/utilitarios.js"></script>
+	<script src="assets/js/armazenamento.js"></script>
+	<script src="assets/js/autenticacao.js"></script>
 	<script src="assets/js/mqtt.min.js"></script>
-	<script src="assets/js/simulator.js"></script>
-	<script src="assets/js/mqtt-client.js"></script>
-	<script src="assets/js/app.js"></script>
+	<script src="assets/js/simulador.js"></script>
+	<script src="assets/js/cliente-mqtt.js"></script>
+	<script src="assets/js/aplicacao.js"></script>
 	<script>
 		(function () {
 			'use strict';
 
-			const STATE_COLORS = {
-				RED: '#b52a2a', YELLOW: '#a36200', GREEN: '#145c30',
-				BLINK_YELLOW: '#a36200', SAFETY_RED: '#6b1c1c',
-			};
-			const STATE_PT = {
-				RED: 'Vermelho', YELLOW: 'Amarelo', GREEN: 'Verde',
-				BLINK_YELLOW: 'Intermitente', SAFETY_RED: 'Segurança',
+			// Cor do ponto indicador de cada estado nos cards de status
+			const COR_DO_ESTADO = {
+				RED: '#b52a2a', YELLOW: '#a36200', GREEN: '#145c30', BLINK_YELLOW: '#a36200',
 			};
 
-			function esc(s) {
-				return String(s || '').replace(/[&<>"']/g, c =>
-					({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+			// Mostra quantos semáforos e usuários estão cadastrados
+			function atualizarContadores() {
+				document.getElementById('count-devices').textContent = Armazenamento.listarDispositivos().length;
+				document.getElementById('count-users').textContent = Armazenamento.listarUsuarios().length;
 			}
 
-			function refreshSummary() {
-				document.getElementById('count-devices').textContent = Storage.getDevices().length;
-				document.getElementById('count-users').textContent = Storage.getUsers().length;
-			}
+			// Monta os cards de status ao vivo a partir do que a aplicacao.js salvou
+			function atualizarStatusAoVivo() {
+				let estadosPorDispositivo = {};
+				try { estadosPorDispositivo = JSON.parse(sessionStorage.getItem('estado_dispositivos') || '{}'); } catch { }
 
-			function refreshLiveStatus() {
-				let statusMap = {};
-				try { statusMap = JSON.parse(sessionStorage.getItem('deviceStatus') || '{}'); } catch { }
+				const grade = document.getElementById('live-status-grid');
+				const aviso = document.getElementById('status-hint');
 
-				const grid = document.getElementById('live-status-grid');
-				const hint = document.getElementById('status-hint');
-
-				if (!Object.keys(statusMap).length) {
-					grid.innerHTML = '';
-					hint.style.display = '';
+				if (!Object.keys(estadosPorDispositivo).length) {
+					grade.innerHTML = '';
+					aviso.style.display = '';
 					return;
 				}
-				hint.style.display = 'none';
+				aviso.style.display = 'none';
 
-				grid.innerHTML = Object.entries(statusMap).map(([id, d]) => {
-					const stateLabel = STATE_PT[d.state] || d.state;
-					const color = STATE_COLORS[d.state] || '#444';
-					const age = d.ts ? Math.round((Date.now() - d.ts) / 1000) : null;
+				grade.innerHTML = Object.entries(estadosPorDispositivo).map(([id, dados]) => {
+					const rotuloEstado  = ROTULO_ESTADO[dados.estado] || dados.estado;
+					const cor           = COR_DO_ESTADO[dados.estado] || '#444';
+					const segundosAtras = dados.ts ? Math.round((Date.now() - dados.ts) / 1000) : null;
 					return `<div class="col-4 col-6-medium col-12-small">
 							<div class="box" style="padding:1em;display:flex;align-items:center;gap:1em;">
-								<span style="width:14px;height:14px;border-radius:50%;background:${color};flex-shrink:0;box-shadow:0 0 8px ${color};"></span>
+								<span style="width:14px;height:14px;border-radius:50%;background:${cor};flex-shrink:0;box-shadow:0 0 8px ${cor};"></span>
 								<div style="min-width:0;">
-									<div style="font-weight:700;font-size:0.9em;">${esc(id)}</div>
-									<div style="font-size:0.78em;opacity:0.65;">${esc(stateLabel)}${age !== null ? ' · ' + age + 's atrás' : ''}</div>
+									<div style="font-weight:700;font-size:0.9em;">${escaparHtml(id)}</div>
+									<div style="font-size:0.78em;opacity:0.65;">${escaparHtml(rotuloEstado)}${segundosAtras !== null ? ' · ' + segundosAtras + 's atrás' : ''}</div>
 								</div>
 							</div>
 						</div>`;
@@ -163,14 +157,14 @@
 			}
 
 			document.addEventListener('DOMContentLoaded', () => {
-				refreshSummary();
-				refreshLiveStatus();
-				setInterval(refreshLiveStatus, 3000);
+				atualizarContadores();
+				atualizarStatusAoVivo();
+				setInterval(atualizarStatusAoVivo, 3000);
 
-				// Hide Usuários link for operador
-				if (!Auth.isAdmin()) {
-					const btn = document.getElementById('btn-usuarios');
-					if (btn) btn.hidden = true;
+				// Operador não enxerga o atalho de Usuários
+				if (!Autenticacao.ehAdministrador()) {
+					const botaoUsuarios = document.getElementById('btn-usuarios');
+					if (botaoUsuarios) botaoUsuarios.hidden = true;
 				}
 			});
 		})();

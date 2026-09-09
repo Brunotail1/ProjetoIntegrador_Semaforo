@@ -115,7 +115,6 @@ circle.twin-green.ligado {
 [data-state="YELLOW"]       .twin-state-badge { background: #a36200; }
 [data-state="GREEN"]        .twin-state-badge { background: #145c30; }
 [data-state="BLINK_YELLOW"] .twin-state-badge { background: #a36200; }
-[data-state="SAFETY_RED"]   .twin-state-badge { background: #6b1c1c; }
 
 .twin-countdown {
   font-family: 'Courier New', Courier, monospace;
@@ -127,27 +126,6 @@ circle.twin-green.ligado {
   min-height: 1.4em;
 }
 
-/* ── MQTT status dot ─────────────────────────────────────────────────── */
-.mqtt-status {
-  display: flex;
-  align-items: center;
-  padding: 0.5em 0;
-  font-size: 0.85em;
-  color: rgba(255,255,255,0.58);
-}
-
-.status-dot {
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  margin-right: 0.6em;
-  flex-shrink: 0;
-  background: #d69e2e;
-  box-shadow: 0 0 6px rgba(214,158,46,0.5);
-  transition: background 0.4s ease, box-shadow 0.4s ease;
-}
-.status-dot.connected    { background: #38a169; box-shadow: 0 0 8px rgba(56,161,105,0.65); }
-.status-dot.disconnected { background: #e53e3e; box-shadow: 0 0 8px rgba(229,62,62,0.65); }
-
 /* ── Misc ────────────────────────────────────────────────────────────── */
 .device-id-tag {
   font-family: 'Courier New', Courier, monospace;
@@ -158,11 +136,6 @@ circle.twin-green.ligado {
   color: rgba(255,255,255,0.48);
   border: 1px solid rgba(255,255,255,0.08);
 }
-
-.last-update-time { font-size: 0.8em; color: rgba(255,255,255,0.42); font-style: italic; }
-.log-result-ok       { color: #68d391; }
-.log-result-rejected { color: #fc8181; }
-.log-result-safe     { color: #f6e05e; }
 
 /* ── input[type="number"] fix (not covered by Hyperspace theme) ──────── */
 #form-section input[type="number"] {
