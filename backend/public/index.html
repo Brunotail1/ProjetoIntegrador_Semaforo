@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Back-end do Semáforo</title>
+	<style>
+		body { font-family: sans-serif; max-width: 600px; margin: 2em auto; padding: 0 1em; }
+		fieldset { margin-bottom: 1.5em; padding: 1em; }
+		label { display: inline-block; margin: 0.3em 1em 0.3em 0; }
+		input { width: 5em; }
+		#id-semaforo { width: 8em; }
+		button { margin-top: 0.8em; padding: 0.4em 1.2em; }
+		#estado { font-size: 1.5em; font-weight: bold; }
+	</style>
+</head>
+<body>
+	<h1>Back-end do Semáforo</h1>
+
+	<label>ID do semáforo: <input id="id-semaforo" value="sem-a"></label>
+
+	<!-- Back-end envia configurações ao semáforo -->
+	<fieldset>
+		<legend>Enviar configuração (segundos)</legend>
+		<label>Vermelho <input type="number" id="vermelho" value="5"></label>
+		<label>Amarelo <input type="number" id="amarelo" value="3"></label>
+		<label>Verde <input type="number" id="verde" value="5"></label>
+		<br>
+		<button id="btn-enviar">Enviar</button>
+		<span id="resultado-envio"></span>
+	</fieldset>
+
+	<!-- Back-end recebe status do semáforo -->
+	<fieldset>
+		<legend>Status recebido do semáforo</legend>
+		<p>Situação atual: <span id="estado">—</span></p>
+		<p>Falhas:</p>
+		<ul id="falhas"></ul>
+	</fieldset>
+
+	<script>
+		const idSemaforo = () => document.getElementById('id-semaforo').value.trim();
+
+		// Chama a rota POST /semaforos/:id/configuracao
+		document.getElementById('btn-enviar').addEventListener('click', async () => {
+			const corpo = {
+				vermelho: Number(document.getElementById('vermelho').value),
+				amarelo: Number(document.getElementById('amarelo').value),
+				verde: Number(document.getElementById('verde').value),
+			};
+			await fetch(`/semaforos/${idSemaforo()}/configuracao`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(corpo),
+			});
+			document.getElementById('resultado-envio').textContent = 'Enviado às ' + new Date().toLocaleTimeString();
+		});
+
+		// Consulta a rota GET /semaforos/:id/status a cada 2 segundos
+		async function atualizarStatus() {
+			const resposta = await fetch(`/semaforos/${idSemaforo()}/status`);
+			const dados = await resposta.json();
+			document.getElementById('estado').textContent = dados.situacao ? dados.situacao.estado : '—';
+			const lista = document.getElementById('falhas');
+			lista.innerHTML = '';
+			dados.falhas.forEach((falha) => {
+				const item = document.createElement('li');
+				item.textContent = 'Luz: ' + falha.luz;
+				lista.appendChild(item);
+			});
+		}
+		atualizarStatus();
+		setInterval(atualizarStatus, 2000);
+	</script>
+</body>
+</html>
