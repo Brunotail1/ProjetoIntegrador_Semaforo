@@ -14,7 +14,7 @@ npm start
 
 > No PowerShell, se der erro de "running scripts is disabled", use `npm.cmd start` ou `node server.js`.
 
-Abra **http://localhost:3000** para usar a tela.
+Abra **http://localhost:3001** para usar a tela.
 
 ## Configurar o MQTTX (simula o semáforo)
 

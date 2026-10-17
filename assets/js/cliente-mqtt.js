@@ -58,8 +58,10 @@ class ClienteMqtt {
 			try {
 				payload = JSON.parse(mensagem.toString());
 			} catch {
-				return; // ignora payloads mal formatados
+				// Não é JSON (ex.: "verde" digitado no MQTTX em Plaintext): repassa o texto puro
+				payload = mensagem.toString().trim();
 			}
+			console.log('[MQTT recebido]', topico, payload);
 			const partes = topico.split('/');
 			const idDispositivo = partes[4]; // extrai o id do dispositivo do tópico
 			const sufixo = partes[5];        // extrai o sufixo (comando, estado, etc)

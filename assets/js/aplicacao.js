@@ -85,6 +85,28 @@ const ROTULO_ESTADO = {
 	BLINK_YELLOW: 'Intermitente',
 };
 
+// Aceita os jeitos mais comuns de mandar um comando pelo MQTTX e devolve o nome
+// usado pelo simulador ('vermelho', 'amarelo', 'verde', 'automatico', 'intermitente'):
+//   {"cmd":"verde"}  {"luz":"verde"}  {"comando":"verde"}  {"estado":"GREEN"}  verde
+const COMANDO_POR_SINONIMO = {
+	vermelho: 'vermelho', red: 'vermelho',
+	amarelo: 'amarelo', yellow: 'amarelo',
+	verde: 'verde', green: 'verde',
+	automatico: 'automatico', 'automático': 'automatico', auto: 'automatico',
+	intermitente: 'intermitente', blink_yellow: 'intermitente', piscante: 'intermitente',
+};
+
+function normalizarComando(payload) {
+	const valor = (payload && typeof payload === 'object')
+		? (payload.cmd || payload.comando || payload.luz || payload.estado)
+		: payload;
+	if (typeof valor !== 'string') return null;
+	return COMANDO_POR_SINONIMO[valor.trim().toLowerCase()] || null;
+}
+
+// Mesmo vocabulário, mas devolvendo o estado interno (RED, YELLOW, GREEN, BLINK_YELLOW)
+const ESTADO_POR_COMANDO_NORMALIZADO = { vermelho: 'RED', amarelo: 'YELLOW', verde: 'GREEN', intermitente: 'BLINK_YELLOW' };
+
 // ── Registro de comandos (RN07) ──────────────────────────────────────────────
 const RegistroDeComandos = (() => {
 	const LIMITE_REGISTROS = 500;
@@ -257,6 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				if (clienteMqtt.conectado) {
 					clienteMqtt.publicar(idDispositivo, 'estado', {
 						estado: novoEstado,
+						origem: 'gemeo-web', // marca pra outras abas não repintarem a tela com isso
 						ts: Date.now(),
 						tempoRestanteMs: semaforos[idDispositivo] ? semaforos[idDispositivo].tempoRestanteMs : 0,
 					});
@@ -303,13 +326,23 @@ document.addEventListener('DOMContentLoaded', () => {
 		}
 
 		if (sufixo === 'estado') {
-			if (payload.estado) atualizarGemeoNaTela(idDispositivo, payload.estado);
+			// Estado publicado por um gêmeo web (esta ou outra aba aberta) não manda na tela;
+			// só o que vem do dispositivo real / MQTTX é espelhado
+			if (payload && payload.origem === 'gemeo-web') return;
+			const comandoDoEstado = normalizarComando(payload);
+			const estado = ESTADO_POR_COMANDO_NORMALIZADO[comandoDoEstado];
+			if (estado) atualizarGemeoNaTela(idDispositivo, estado);
 			return;
 		}
 
 		if (sufixo === 'comando') {
-			const comando = payload.cmd;
-			if (!comando) return;
+			const comando = normalizarComando(payload);
+			if (!comando) {
+				console.warn(`[MQTT] comando não reconhecido em ${idDispositivo}:`, payload,
+					'— use {"cmd":"vermelho|amarelo|verde|automatico|intermitente"}');
+				RegistroDeComandos.registrar(idDispositivo, 'MQTT', 'cmd:?', 'IGNORADO', JSON.stringify(payload));
+				return;
+			}
 
 			// 'automatico' e 'intermitente' trocam o modo de operação e cuidam dos
 			// próprios temporizadores. Comando de cor trava o semáforo nessa cor
@@ -321,6 +354,9 @@ document.addEventListener('DOMContentLoaded', () => {
 			RegistroDeComandos.registrar(idDispositivo, 'MQTT', `cmd:${comando}`, 'OK', '');
 			return;
 		}
+
+		// Configuração e falha precisam de JSON; texto puro aqui é ignorado
+		if (typeof payload !== 'object' || payload === null) return;
 
 		if (sufixo === 'configuracao') {
 			semaforo.definirTempos(payload);

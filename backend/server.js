@@ -18,7 +18,8 @@ const EQUIPE = 'EQUIPE';
 const BASE = `aps1/semaforo/${TURMA}/${EQUIPE}`;
 
 // Status recebido de cada semáforo fica salvo no arquivo banco.db (SQLite)
-const banco = new DatabaseSync(__dirname + '/banco.db');
+// timeout: espera até 5s se o banco estiver ocupado (ex.: aberto no sqlite3 ao mesmo tempo)
+const banco = new DatabaseSync(__dirname + '/banco.db', { timeout: 5000 });
 banco.exec(`
 	CREATE TABLE IF NOT EXISTS estados (
 		id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -68,16 +69,22 @@ cliente.on('message', (topico, mensagem) => {
 	} catch {
 		return; // ignora payloads mal formatados
 	}
+	if (!payload || typeof payload !== 'object') return;
 
 	const texto = JSON.stringify(payload);
-	if (sufixo === 'estado') inserirEstado.run(idDispositivo, String(payload.estado ?? ''), texto);
-	if (sufixo === 'falha') inserirFalha.run(idDispositivo, String(payload.luz ?? ''), texto);
+	try {
+		if (sufixo === 'estado') inserirEstado.run(idDispositivo, String(payload.estado ?? ''), texto);
+		if (sufixo === 'falha') inserirFalha.run(idDispositivo, String(payload.luz ?? ''), texto);
+	} catch (erro) {
+		console.log('Erro ao gravar no banco:', erro.message); // não derruba o servidor
+		return;
+	}
 	console.log(`[recebido] ${idDispositivo}/${sufixo}`, payload);
 });
 
 const app = express();
 app.use(express.json());
-app.use(express.static(__dirname + '/public')); // tela simples em http://localhost:3000
+app.use(express.static(__dirname + '/public')); // tela simples em http://localhost:3001
 
 // back-end envia configurações ao semáforo 
 app.post('/semaforos/:id/configuracao', (req, res) => {
@@ -98,4 +105,5 @@ app.get('/semaforos/:id/status', (req, res) => {
 	});
 });
 
-app.listen(3001, () => console.log('API em http://localhost:3000'));
+const PORTA = 3001;
+app.listen(PORTA, () => console.log(`API em http://localhost:${PORTA}`));
