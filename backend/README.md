@@ -41,3 +41,16 @@ Base: `aps1/semaforo/TURMA/EQUIPE/<id>/` (o `<id>` é o mesmo do campo "ID do se
 
 - `POST /semaforos/:id/configuracao` — envia a configuração ao semáforo
 - `GET /semaforos/:id/status` — mostra a situação atual e as falhas recebidas
+
+## Banco de dados (SQLite)
+
+Os status recebidos do semáforo ficam salvos no arquivo `backend/banco.db`, criado automaticamente na primeira execução (usa o `node:sqlite`, embutido no Node 22.5+, sem instalar nada).
+
+- Tabela `estados` — cada situação atual recebida (`id_dispositivo`, `estado`, `payload`, `recebido_em`)
+- Tabela `falhas` — cada falha recebida (`id_dispositivo`, `luz`, `payload`, `recebido_em`)
+
+Para consultar pelo terminal:
+
+```bash
+sqlite3 banco.db "select * from estados; select * from falhas;"
+```

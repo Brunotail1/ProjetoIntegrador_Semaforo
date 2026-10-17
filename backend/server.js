@@ -11,14 +11,38 @@
 
 const express = require('express');
 const mqtt = require('mqtt');
+const { DatabaseSync } = require('node:sqlite'); // SQLite já vem embutido no Node 22.5+
 
 const TURMA = 'TURMA';   // mesmo valor usado no aplicacao.js importado em equipe e turma
 const EQUIPE = 'EQUIPE'; 
 const BASE = `aps1/semaforo/${TURMA}/${EQUIPE}`;
 
-// Último status recebido de cada semáforo (fica em memória)
-const situacao = {}; // idDispositivo → { estado }
-const falhas = {};   // idDispositivo → [ { luz }]
+// Status recebido de cada semáforo fica salvo no arquivo banco.db (SQLite)
+const banco = new DatabaseSync(__dirname + '/banco.db');
+banco.exec(`
+	CREATE TABLE IF NOT EXISTS estados (
+		id            INTEGER PRIMARY KEY AUTOINCREMENT,
+		id_dispositivo TEXT NOT NULL,
+		estado        TEXT,
+		payload       TEXT NOT NULL,
+		recebido_em   TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+	);
+	CREATE TABLE IF NOT EXISTS falhas (
+		id            INTEGER PRIMARY KEY AUTOINCREMENT,
+		id_dispositivo TEXT NOT NULL,
+		luz           TEXT,
+		payload       TEXT NOT NULL,
+		recebido_em   TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+	);
+`);
+
+const inserirEstado = banco.prepare('INSERT INTO estados (id_dispositivo, estado, payload) VALUES (?, ?, ?)');
+const inserirFalha = banco.prepare('INSERT INTO falhas (id_dispositivo, luz, payload) VALUES (?, ?, ?)');
+const ultimoEstado = banco.prepare('SELECT payload, recebido_em FROM estados WHERE id_dispositivo = ? ORDER BY id DESC LIMIT 1');
+const listarFalhas = banco.prepare('SELECT payload, recebido_em FROM falhas WHERE id_dispositivo = ? ORDER BY id');
+
+// Converte uma linha do banco de volta para o JSON recebido + data de recebimento
+const linhaParaJson = (linha) => ({ ...JSON.parse(linha.payload), recebidoEm: linha.recebido_em });
 
 // ── Item 1: integração do back-end com MQTT ──────────────────────────────────
 const cliente = mqtt.connect('mqtt://test.mosquitto.org:1883');
@@ -45,11 +69,9 @@ cliente.on('message', (topico, mensagem) => {
 		return; // ignora payloads mal formatados
 	}
 
-	if (sufixo === 'estado') situacao[idDispositivo] = payload;
-	if (sufixo === 'falha') {
-		if (!falhas[idDispositivo]) falhas[idDispositivo] = [];
-		falhas[idDispositivo].push(payload);
-	}
+	const texto = JSON.stringify(payload);
+	if (sufixo === 'estado') inserirEstado.run(idDispositivo, String(payload.estado ?? ''), texto);
+	if (sufixo === 'falha') inserirFalha.run(idDispositivo, String(payload.luz ?? ''), texto);
 	console.log(`[recebido] ${idDispositivo}/${sufixo}`, payload);
 });
 
@@ -69,7 +91,11 @@ app.post('/semaforos/:id/configuracao', (req, res) => {
 // Consulta o que o back-end recebeu do semáforo 
 app.get('/semaforos/:id/status', (req, res) => {
 	const id = req.params.id;
-	res.json({ situacao: situacao[id] || null, falhas: falhas[id] || [] });
+	const estado = ultimoEstado.get(id);
+	res.json({
+		situacao: estado ? linhaParaJson(estado) : null,
+		falhas: listarFalhas.all(id).map(linhaParaJson),
+	});
 });
 
-app.listen(3000, () => console.log('API em http://localhost:3000'));
+app.listen(3001, () => console.log('API em http://localhost:3000'));
