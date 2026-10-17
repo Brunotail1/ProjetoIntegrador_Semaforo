@@ -19,11 +19,11 @@ Abra **http://localhost:3000** para usar a tela.
 ## Configurar o MQTTX (simula o semáforo)
 
 1. **New Connection** → Host `mqtt://test.mosquitto.org`, Port `1883` → **Connect**
-2. **New Subscription** → `aps1/semaforo/TURMA/EQUIPE/sem-a/#`
+2. **New Subscription** → `aps1/semaforo/TURMA/equipe-brunotintimario/sem-a/#`
 
 ## Tópicos MQTT
 
-Base: `aps1/semaforo/TURMA/EQUIPE/<id>/` (o `<id>` é o mesmo do campo "ID do semáforo" da tela, ex.: `sem-a`)
+Base: `aps1/semaforo/TURMA/equipe-brunotintimario/<id>/` (o `<id>` é o mesmo do campo "ID do semáforo" da tela, ex.: `sem-a`)
 
 | Sentido | Tópico | Mensagem (JSON) |
 |---|---|---|
@@ -34,8 +34,8 @@ Base: `aps1/semaforo/TURMA/EQUIPE/<id>/` (o `<id>` é o mesmo do campo "ID do se
 ## Testando
 
 1. **Enviar configuração:** na tela, preencha os tempos e clique em **Enviar** → a mensagem chega no MQTTX.
-2. **Enviar estado:** no MQTTX, publique `{"estado":"GREEN"}` em `aps1/semaforo/TURMA/EQUIPE/sem-a/estado` → aparece na tela.
-3. **Enviar falha:** no MQTTX, publique `{"luz":"vermelho"}` em `aps1/semaforo/TURMA/EQUIPE/sem-a/falha` → aparece na tela.
+2. **Enviar estado:** no MQTTX, publique `{"estado":"GREEN"}` em `aps1/semaforo/TURMA/equipe-brunotintimario/sem-a/estado` → aparece na tela.
+3. **Enviar falha:** no MQTTX, publique `{"luz":"vermelho"}` em `aps1/semaforo/TURMA/equipe-brunotintimario/sem-a/falha` → aparece na tela.
 
 ## Rotas HTTP
 

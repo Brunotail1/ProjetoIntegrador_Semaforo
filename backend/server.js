@@ -17,7 +17,7 @@ const os = require('os');
 const path = require('path');
 
 const TURMA = 'TURMA';   // mesmo valor usado no aplicacao.js importado em equipe e turma
-const EQUIPE = 'EQUIPE'; 
+const EQUIPE = 'equipe-brunotintimario';
 const BASE = `aps1/semaforo/${TURMA}/${EQUIPE}`;
 
 // Status recebido de cada semáforo fica salvo no arquivo banco.db (SQLite)
