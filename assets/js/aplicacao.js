@@ -69,7 +69,7 @@ const CONFIGURACAO = {
 	broker: 'test.mosquitto.org',
 	porta: 8080,
 	turma: 'TURMA',   // ← PREENCHER
-	equipe: 'equipe-brunotintimario',
+	equipe: 'EQUIPE', // ← PREENCHER
 	idsDispositivos: ['sem-a', 'sem-b'],
 	rotulosDispositivos: { 'sem-a': 'Semáforo A', 'sem-b': 'Semáforo B' },
 	tempos: { vermelho: 5000, amarelo: 3000, verde: 5000, minimo: 1000, maximo: 60000 },
