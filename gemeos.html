@@ -280,7 +280,7 @@
 				if (!idDispositivoAberto || modal.hidden) return;
 				const semaforo = semaforos[idDispositivoAberto];
 				if (!semaforo || !elContagem) return;
-				elContagem.textContent = semaforo.estado === 'BLINK_YELLOW'
+				elContagem.textContent = (!semaforo.emExecucao || semaforo.estado === 'BLINK_YELLOW')
 					? '—'
 					: Math.ceil(semaforo.tempoRestanteMs / 1000) + 's';
 			}, 200);

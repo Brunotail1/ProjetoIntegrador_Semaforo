@@ -96,7 +96,10 @@ class Semaforo {
 		const { minimo, maximo } = this.tempos;
 		const limitar = (segundos) => Math.min(maximo, Math.max(minimo, segundos * 1000));
 		['vermelho', 'amarelo', 'verde'].forEach((cor) => {
-			if (novosTempos[cor] !== undefined) this.tempos[cor] = limitar(novosTempos[cor]);
+			const segundos = Number(novosTempos[cor]); // aceita 5 ou "5"; ignora vazio/texto
+			if (novosTempos[cor] !== undefined && novosTempos[cor] !== '' && Number.isFinite(segundos)) {
+				this.tempos[cor] = limitar(segundos);
+			}
 		});
 	}
 

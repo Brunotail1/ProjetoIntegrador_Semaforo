@@ -7,14 +7,14 @@ O semáforo (ESP32) é simulado pelo **MQTTX**.
 
 Dentro da pasta `backend`:
 
-```bash
+```powershell
 npm install
 npm start
 ```
 
 > No PowerShell, se der erro de "running scripts is disabled", use `npm.cmd start` ou `node server.js`.
 
-Abra **http://localhost:3001** para usar a tela.
+Abra **http://localhost:3000** para usar a tela.
 
 ## Configurar o MQTTX (simula o semáforo)
 
@@ -44,13 +44,13 @@ Base: `aps1/semaforo/TURMA/EQUIPE/<id>/` (o `<id>` é o mesmo do campo "ID do se
 
 ## Banco de dados (SQLite)
 
-Os status recebidos do semáforo ficam salvos no arquivo `backend/banco.db`, criado automaticamente na primeira execução (usa o `node:sqlite`, embutido no Node 22.5+, sem instalar nada).
+Os status recebidos do semáforo ficam salvos no arquivo `%USERPROFILE%\.semaforo\banco.db` (fora do projeto, pra gravação não fazer o Live Server recarregar a página; troque com a variável `BANCO_DB`), criado automaticamente na primeira execução (usa o `node:sqlite`, embutido no Node 22.5+, sem instalar nada).
 
 - Tabela `estados` — cada situação atual recebida (`id_dispositivo`, `estado`, `payload`, `recebido_em`)
 - Tabela `falhas` — cada falha recebida (`id_dispositivo`, `luz`, `payload`, `recebido_em`)
 
 Para consultar pelo terminal:
 
-```bash
-sqlite3 banco.db "select * from estados; select * from falhas;"
+```powershell
+sqlite3 "$env:USERPROFILE\.semaforo\banco.db" "select * from estados; select * from falhas;"
 ```

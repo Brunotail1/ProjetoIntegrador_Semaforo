@@ -12,14 +12,22 @@
 const express = require('express');
 const mqtt = require('mqtt');
 const { DatabaseSync } = require('node:sqlite'); // SQLite já vem embutido no Node 22.5+
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
 const TURMA = 'TURMA';   // mesmo valor usado no aplicacao.js importado em equipe e turma
 const EQUIPE = 'EQUIPE'; 
 const BASE = `aps1/semaforo/${TURMA}/${EQUIPE}`;
 
 // Status recebido de cada semáforo fica salvo no arquivo banco.db (SQLite)
+// O arquivo fica FORA da pasta do projeto: dentro dela, o Live Server do VS Code
+// recarregava o gemeos.html a cada gravação. Dá pra trocar com a variável BANCO_DB.
+const CAMINHO_BANCO = process.env.BANCO_DB || path.join(os.homedir(), '.semaforo', 'banco.db');
+fs.mkdirSync(path.dirname(CAMINHO_BANCO), { recursive: true });
 // timeout: espera até 5s se o banco estiver ocupado (ex.: aberto no sqlite3 ao mesmo tempo)
-const banco = new DatabaseSync(__dirname + '/banco.db', { timeout: 5000 });
+const banco = new DatabaseSync(CAMINHO_BANCO, { timeout: 5000 });
+console.log('Banco SQLite em', CAMINHO_BANCO);
 banco.exec(`
 	CREATE TABLE IF NOT EXISTS estados (
 		id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -84,7 +92,7 @@ cliente.on('message', (topico, mensagem) => {
 
 const app = express();
 app.use(express.json());
-app.use(express.static(__dirname + '/public')); // tela simples em http://localhost:3001
+app.use(express.static(__dirname + '/public')); // tela simples em http://localhost:3000
 
 // back-end envia configurações ao semáforo 
 app.post('/semaforos/:id/configuracao', (req, res) => {
@@ -105,5 +113,5 @@ app.get('/semaforos/:id/status', (req, res) => {
 	});
 });
 
-const PORTA = 3001;
+const PORTA = 3000;
 app.listen(PORTA, () => console.log(`API em http://localhost:${PORTA}`));

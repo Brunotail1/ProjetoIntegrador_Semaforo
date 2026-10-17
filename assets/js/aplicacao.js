@@ -360,6 +360,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		if (sufixo === 'configuracao') {
 			semaforo.definirTempos(payload);
+			// Se estiver no ciclo automático, a cor atual já passa a contar com o tempo novo
+			if (semaforo.emExecucao && semaforo.estado !== 'BLINK_YELLOW') semaforo.reiniciarFaseAtual();
+
+			// Guarda no cadastro (em segundos) pra configuração sobreviver a um recarregamento
+			const cadastrado = window.Armazenamento
+				? Armazenamento.listarDispositivos().find((d) => d.id === idDispositivo)
+				: null;
+			if (cadastrado) {
+				Armazenamento.salvarDispositivo(Object.assign({}, cadastrado, {
+					tempoVermelho: semaforo.tempos.vermelho / 1000,
+					tempoAmarelo: semaforo.tempos.amarelo / 1000,
+					tempoVerde: semaforo.tempos.verde / 1000,
+				}));
+			}
+
+			console.log(`[MQTT] tempos de ${idDispositivo} (ms):`, semaforo.tempos);
 			RegistroDeComandos.registrar(idDispositivo, 'MQTT', 'configurar', 'OK', JSON.stringify(payload));
 			return;
 		}
