@@ -67,7 +67,8 @@
 				<!-- Status ao vivo dos semáforos -->
 				<h3>Status ao Vivo</h3>
 				<p id="status-hint" style="font-size:0.9em;opacity:0.6;display:none;">
-					Abra <a href="gemeos.html">Gêmeos Digitais</a> na mesma aba para alimentar os dados ao vivo.
+					Nenhum estado recebido ainda. Abra <a href="gemeos.html">Gêmeos Digitais</a> e envie um comando
+					para alimentar os dados ao vivo.
 				</p>
 				<div id="live-status-grid" class="row gtr-uniform" style="margin-bottom:2em;"></div>
 
@@ -106,60 +107,64 @@
 	<script src="assets/js/utilitarios.js"></script>
 	<script src="assets/js/armazenamento.js"></script>
 	<script src="assets/js/autenticacao.js"></script>
-	<script src="assets/js/mqtt.min.js"></script>
-	<script src="assets/js/simulador.js"></script>
-	<script src="assets/js/cliente-mqtt.js"></script>
-	<script src="assets/js/aplicacao.js"></script>
 	<script>
 		(function () {
 			'use strict';
+
+			const ROTULO_ESTADO = {
+				RED: 'Vermelho', YELLOW: 'Amarelo', GREEN: 'Verde', BLINK_YELLOW: 'Intermitente',
+			};
 
 			// Cor do ponto indicador de cada estado nos cards de status
 			const COR_DO_ESTADO = {
 				RED: '#b52a2a', YELLOW: '#a36200', GREEN: '#145c30', BLINK_YELLOW: '#a36200',
 			};
 
-			// Mostra quantos semáforos e usuários estão cadastrados
-			function atualizarContadores() {
-				document.getElementById('count-devices').textContent = Armazenamento.listarDispositivos().length;
-				document.getElementById('count-users').textContent = Armazenamento.listarUsuarios().length;
+			// Mostra "há quanto tempo" na maior unidade que couber
+			function formatarTempoDecorrido(segundos) {
+				if (segundos < 60) return `${segundos}s atrás`;
+				if (segundos < 3600) return `${Math.floor(segundos / 60)} min atrás`;
+				if (segundos < 86400) return `${Math.floor(segundos / 3600)} h atrás`;
+				return `${Math.floor(segundos / 86400)} dias atrás`;
 			}
 
-			// Monta os cards de status ao vivo a partir do que a aplicacao.js salvou
-			function atualizarStatusAoVivo() {
-				let estadosPorDispositivo = {};
-				try { estadosPorDispositivo = JSON.parse(sessionStorage.getItem('estado_dispositivos') || '{}'); } catch { }
-
+			// Monta os cards com o último estado que o back-end recebeu de cada semáforo
+			function renderizarStatusAoVivo(statusAoVivo) {
+				const comEstado = statusAoVivo.filter((semaforo) => semaforo.estado);
 				const grade = document.getElementById('live-status-grid');
 				const aviso = document.getElementById('status-hint');
 
-				if (!Object.keys(estadosPorDispositivo).length) {
-					grade.innerHTML = '';
-					aviso.style.display = '';
-					return;
-				}
-				aviso.style.display = 'none';
-
-				grade.innerHTML = Object.entries(estadosPorDispositivo).map(([id, dados]) => {
-					const rotuloEstado  = ROTULO_ESTADO[dados.estado] || dados.estado;
-					const cor           = COR_DO_ESTADO[dados.estado] || '#444';
-					const segundosAtras = dados.ts ? Math.round((Date.now() - dados.ts) / 1000) : null;
+				aviso.style.display = comEstado.length ? 'none' : '';
+				grade.innerHTML = comEstado.map((semaforo) => {
+					const rotuloEstado = ROTULO_ESTADO[semaforo.estado] || semaforo.estado;
+					const cor          = COR_DO_ESTADO[semaforo.estado] || '#444';
 					return `<div class="col-4 col-6-medium col-12-small">
 							<div class="box" style="padding:1em;display:flex;align-items:center;gap:1em;">
 								<span style="width:14px;height:14px;border-radius:50%;background:${cor};flex-shrink:0;box-shadow:0 0 8px ${cor};"></span>
 								<div style="min-width:0;">
-									<div style="font-weight:700;font-size:0.9em;">${escaparHtml(id)}</div>
-									<div style="font-size:0.78em;opacity:0.65;">${escaparHtml(rotuloEstado)}${segundosAtras !== null ? ' · ' + segundosAtras + 's atrás' : ''}</div>
+									<div style="font-weight:700;font-size:0.9em;">${escaparHtml(semaforo.nome)}</div>
+									<div style="font-size:0.78em;opacity:0.65;">${escaparHtml(rotuloEstado)} · ${formatarTempoDecorrido(semaforo.segundosAtras)}</div>
 								</div>
 							</div>
 						</div>`;
 				}).join('');
 			}
 
+			// Atualiza os contadores e o status ao vivo com os dados do back-end
+			async function atualizarPainel() {
+				try {
+					const painel = await Armazenamento.obterPainel();
+					document.getElementById('count-devices').textContent = painel.totalSemaforos;
+					document.getElementById('count-users').textContent = painel.totalUsuarios;
+					renderizarStatusAoVivo(painel.statusAoVivo);
+				} catch (erro) {
+					console.warn('Painel sem dados:', erro.message); // tenta de novo no próximo ciclo
+				}
+			}
+
 			document.addEventListener('DOMContentLoaded', () => {
-				atualizarContadores();
-				atualizarStatusAoVivo();
-				setInterval(atualizarStatusAoVivo, 3000);
+				atualizarPainel();
+				setInterval(atualizarPainel, 3000);
 
 				// Operador não enxerga o atalho de Usuários
 				if (!Autenticacao.ehAdministrador()) {
