@@ -3,6 +3,8 @@
 Passo a passo para instalar, rodar e testar o projeto **em outra máquina** (Windows).
 Cada teste diz o que fazer e o que deve acontecer. Tudo aqui foi testado em uma cópia limpa do repositório.
 
+A [seção 11](#11-como-o-código-foi-feito-integração-do-back-end) explica todo o código que foi feito para integrar o back-end.
+
 > Comandos para o **PowerShell** do Windows. No PowerShell 5.1 (o padrão) **não existe `&&`**:
 > rode um comando por linha.
 
@@ -295,3 +297,299 @@ npm.cmd start
 Abrir http://localhost:3000 → `admin@sistema.local` / `123456` → abrir **Gêmeos Digitais** →
 no MQTTX (`test.mosquitto.org:1883`) publicar `{"cmd":"verde"}` em `aps1/semaforo/TURMA/EQUIPE/sem-a/comando`
 → o gêmeo fica verde e o Painel mostra *Verde*.
+
+---
+
+## 11. Como o código foi feito (integração do back-end)
+
+### 11.1 Antes e depois
+
+| | Antes | Depois |
+|---|---|---|
+| Usuários e semáforos | ficavam no `localStorage` do navegador (cada navegador tinha os seus) | ficam no **banco SQLite**, acessado pela **API** do back-end |
+| Senhas | guardadas em texto puro no navegador | guardadas como **hash scrypt** no banco |
+| Login | conferido no próprio navegador | conferido no **servidor**, que devolve um **token** de sessão |
+| Painel "Status ao Vivo" | lia o `sessionStorage` (só mostrava o que a própria aba tinha visto) | lê o **último estado gravado no banco**, vindo do MQTT |
+| Back-end | um único `server.js` com só 2 rotas (enviar configuração e ver status) e gravação de estado e falha; sem login, sem cadastros, sem testes | organizado em módulos: API REST completa + MQTT + banco + autenticação + 21 testes |
+
+### 11.2 Visão geral
+
+```mermaid
+flowchart LR
+    subgraph Navegador
+        P[Páginas HTML<br/>login, painel, cadastros]
+        G[Gêmeos Digitais<br/>simulam o semáforo]
+    end
+    subgraph Back-end Node.js
+        API[API REST<br/>Express]
+        M[Cliente MQTT]
+        DB[(SQLite<br/>banco.db)]
+    end
+    B((test.mosquitto.org))
+    X[MQTTX / ESP32]
+
+    P -- "fetch + token" --> API
+    API <--> DB
+    M <--> DB
+    API -- "publica comando/configuração" --> M
+    M <-- "MQTT 1883" --> B
+    G <-- "MQTT WebSocket 8080" --> B
+    X <-- "MQTT 1883" --> B
+```
+
+- As **páginas** falam com o back-end por HTTP, usando a API.
+- O **back-end** e os **gêmeos** falam entre si pelo **broker MQTT**. Nenhum dos dois chama o outro diretamente.
+- O MQTTX (ou um ESP32 de verdade) entra no mesmo broker e conversa com os dois.
+
+### 11.3 Estrutura de pastas do back-end
+
+```
+backend/
+├── server.js              ponto de entrada: conecta no MQTT e sobe a API na porta 3000
+├── package.json           dependências (express, mqtt) e os scripts start/test
+├── public/index.html      tela /console (teste do MQTT pelo navegador)
+├── test/api.test.js       21 testes automáticos
+└── src/
+    ├── config.js          configurações (porta, banco, broker, limites da RN05)
+    ├── banco.js           abre o SQLite, cria as tabelas e os dados iniciais
+    ├── senhas.js          hash e conferência de senha (scrypt)
+    ├── autenticacao.js    sessões (token) e os filtros exigirLogin / exigirAdmin
+    ├── usuarios.js        regras e consultas SQL de usuários
+    ├── semaforos.js       regras e consultas SQL de semáforos
+    ├── registros.js       histórico: estados, falhas e comandos (RN07)
+    ├── mqtt.js            conexão com o broker, recebe e publica mensagens
+    ├── app.js             monta o Express: CORS, rotas, páginas, erros
+    └── rotas/
+        ├── sessao.js      /login, /logout, /sessao
+        ├── usuarios.js    /usuarios (só admin)
+        ├── semaforos.js   /semaforos (+ comando, configuração, status)
+        └── painel.js      /painel e /comandos
+```
+
+A ideia é **cada arquivo ter uma responsabilidade só**:
+
+- Os arquivos de `rotas/` só recebem a requisição, chamam as regras e devolvem a resposta.
+- As regras e o SQL ficam em `usuarios.js`, `semaforos.js` e `registros.js`.
+
+### 11.4 Arquivo por arquivo
+
+#### `server.js`: ponto de entrada
+
+Mostra onde está o banco, chama `conectarMqtt()` e sobe o Express com `criarApp().listen(3000)`.
+Se a porta já estiver ocupada, mostra uma mensagem clara em vez do erro técnico do Node.
+
+#### `src/config.js`: configurações
+
+Junta num lugar só os valores que podem mudar:
+
+| Constante | Valor padrão | Variável de ambiente para trocar |
+|---|---|---|
+| `PORTA` | `3000` | `PORTA` |
+| `CAMINHO_BANCO` | `%USERPROFILE%\.semaforo\banco.db` | `BANCO_DB` |
+| `URL_MQTT` | `mqtt://test.mosquitto.org:1883` | `MQTT_URL` |
+| `BASE_MQTT` | `aps1/semaforo/TURMA/EQUIPE` | `TURMA`, `EQUIPE` |
+| `DURACAO_SESSAO_MS` | 8 horas | — |
+| `TEMPO_MINIMO` / `TEMPO_MAXIMO` | 1 s / 60 s (RN05) | — |
+
+O banco fica **fora da pasta do projeto** de propósito. Dentro dela, o Live Server recarregava a página toda vez que o banco era gravado.
+
+#### `src/banco.js`: banco de dados
+
+- Usa o **`node:sqlite`**, que já vem dentro do Node 22.13+. Por isso não precisa instalar nenhum banco.
+- Cria as tabelas com `CREATE TABLE IF NOT EXISTS`. Se o banco já existe, nada se perde.
+- Liga as chaves estrangeiras (`PRAGMA foreign_keys = ON`).
+- Cria índices nas tabelas de histórico, para buscar rápido "o último estado do sem-a".
+- **Dados iniciais** (admin, sem-a e sem-b) entram **uma vez só**. O banco guarda que isso já rodou no `PRAGMA user_version`. Assim, se alguém excluir o sem-a, ele não volta sozinho no próximo start.
+
+Tabelas:
+
+| Tabela | Guarda | Detalhes |
+|---|---|---|
+| `usuarios` | id (UUID), nome, e-mail, hash da senha, perfil | e-mail único sem diferenciar maiúsculas; perfil só `admin` ou `operador` (`CHECK`) |
+| `sessoes` | hash do token, usuário, validade | `ON DELETE CASCADE`: excluir o usuário apaga as sessões dele |
+| `semaforos` | id, nome, localização, turma, equipe, 3 tempos | o id é o mesmo usado no tópico MQTT |
+| `estados` | cada estado recebido do semáforo | payload original em JSON + data |
+| `falhas` | cada falha de luz recebida | payload original em JSON + data |
+| `comandos` | histórico de comandos e configurações (**RN07**) | guarda o **e-mail** (não a chave do usuário), para o histórico continuar valendo depois que o usuário for excluído |
+
+#### `src/senhas.js`: senhas
+
+- `gerarHashDeSenha(senha)` gera um **sal aleatório** e calcula o hash com **scrypt**. Salva no formato `scrypt$<sal>$<hash>`.
+- `senhaConfere(senha, armazenado)` recalcula o hash com o mesmo sal e compara usando `timingSafeEqual`. Essa comparação leva sempre o mesmo tempo, então ninguém descobre a senha medindo quanto a resposta demora.
+- A senha **nunca** é guardada nem devolvida em texto.
+
+#### `src/autenticacao.js`: login e permissões
+
+- `abrirSessao(idUsuario)` gera um **token aleatório** de 32 bytes, que vai para o navegador. No banco fica só o **hash SHA-256** do token, válido por 8 h. Quem copiar o arquivo do banco não consegue usar as sessões. A cada login, as sessões vencidas são apagadas.
+- `encerrarSessao(token)` apaga a sessão. É o logout.
+- `exigirLogin` é um *middleware* do Express (filtro que roda antes da rota):
+  1. Lê o cabeçalho `Authorization: Bearer <token>`.
+  2. Procura a sessão no banco.
+  3. Coloca o usuário em `req.usuario`, ou responde **401**.
+- `exigirAdmin` responde **403** se o usuário não for admin.
+- O perfil é lido do banco **a cada requisição**. Se o admin rebaixar alguém, a mudança vale na hora.
+
+#### `src/usuarios.js`: regras de usuários
+
+- `validar()` confere:
+  - nome obrigatório, até 60 caracteres;
+  - e-mail válido, até 80 caracteres;
+  - perfil `admin` ou `operador`;
+  - senha de 4 a 64 caracteres, obrigatória só no cadastro novo.
+- `emailEmUso()` impede e-mail repetido.
+- `atualizar()`:
+  - com a **senha em branco**, mantém a senha atual;
+  - com uma **senha nova**, derruba as sessões abertas daquele usuário.
+- `paraJson()` monta o que vai para a tela **sem o hash da senha**.
+
+#### `src/semaforos.js`: regras de semáforos
+
+- `validarId()` aceita só letras, números, `-` e `_`, até 30 caracteres. O id vira parte do tópico MQTT, onde `/`, `+` e `#` têm significado especial e quebrariam os tópicos.
+- `validarTempos()` aplica a **RN05**: cada tempo entre 1 e 60 s.
+- `validarDados()` confere nome, localização, turma e equipe, e chama `validarTempos()`.
+- `paraJson()` converte as colunas do banco (`tempo_vermelho`) para os nomes usados no front (`tempoVermelho`).
+- `statusAoVivo()` é uma consulta SQL que junta cada semáforo com o **último estado** dele e calcula há quantos segundos chegou. Alimenta o Painel.
+
+#### `src/registros.js`: histórico
+
+- `registrarEstado()` e `registrarFalha()` gravam o que chega pelo MQTT.
+- `registrarComando()` grava cada comando e configuração (**RN07**), com:
+  - origem: `API` ou `MQTT`;
+  - resultado: `OK`, `NAO_ENVIADO` ou `IGNORADO`;
+  - o e-mail de quem mandou.
+- `listarComandos()` devolve o histórico: 100 por padrão, no máximo 500, com filtro por semáforo opcional.
+- `statusDoDispositivo()` devolve o último estado e as últimas 100 falhas.
+
+#### `src/mqtt.js`: integração com o broker
+
+- `conectarMqtt()`:
+  - Conecta no broker.
+  - Assina, para **todos** os semáforos (o `+` é o curinga do MQTT):
+    `aps1/semaforo/TURMA/EQUIPE/+/estado`, `/+/falha`, `/+/comando` e `/+/configuracao`.
+  - Usa `queueQoSZero: false`. Sem isso, um comando dado com o broker fora do ar seria entregue atrasado quando ele voltasse.
+- `processarMensagem(topico, mensagem)`:
+  1. Tira o **id do semáforo** e o **tipo** (sufixo) do tópico.
+  2. Tenta ler o JSON. Para comando, também aceita texto puro (ex.: `verde`).
+  3. **Ignora o próprio eco:** tudo que o back-end publica leva `"origem":"backend"`. Quando a mensagem volta do broker, ele reconhece e não grava em dobro.
+  4. Conforme o tipo:
+
+     | Sufixo | O que faz |
+     |---|---|
+     | `estado` | grava em `estados` |
+     | `falha` | grava em `falhas` |
+     | `comando` | registra no histórico como `origem: MQTT` |
+     | `configuracao` | limita os tempos à RN05, salva no cadastro e registra no histórico. Tempo que não veio na mensagem mantém o valor atual. |
+
+  5. Qualquer erro do banco é mostrado no console, sem derrubar o servidor.
+- `publicar(id, sufixo, payload)` publica com `"origem":"backend"`. Devolve `false` se o broker estiver fora, e quem chamou decide o que responder.
+
+#### `src/app.js`: montagem do servidor
+
+- **CORS:** libera a API só para páginas da própria máquina (`localhost` ou `127.0.0.1`, qualquer porta). É isso que faz o Live Server (porta 5500) funcionar. Um site de fora não consegue chamar a API.
+- Liga as rotas: sessão, painel, `/usuarios` e `/semaforos`.
+- Serve **só** as 5 páginas HTML, `/assets`, `/images` e `/console`. Servir a pasta inteira exporia o `backend/` e o `.git`.
+- Rota que não existe → **404** em JSON.
+- JSON malformado → **400**.
+- Erro inesperado → **500**, sem derrubar o servidor.
+
+#### `src/rotas/*`: a API
+
+| Método e rota | Quem pode | O que faz |
+|---|---|---|
+| `POST /login` | qualquer um | confere e-mail e senha; devolve o usuário + token |
+| `POST /logout` | logado | apaga a sessão |
+| `GET /sessao` | logado | devolve o usuário do token |
+| `GET /painel` | logado | totais de semáforos e usuários + status ao vivo |
+| `GET /comandos?dispositivo=&limite=` | logado | histórico de comandos (RN07) |
+| `GET /usuarios` | admin | lista os usuários |
+| `POST /usuarios` | admin | cria um usuário |
+| `PUT /usuarios/:id` | admin | edita; bloqueia rebaixar o último admin |
+| `DELETE /usuarios/:id` | admin | exclui; ninguém exclui a si mesmo |
+| `GET /semaforos` | logado | lista os semáforos |
+| `GET /semaforos/:id` | logado | um semáforo |
+| `POST /semaforos` | admin | cria um semáforo |
+| `PUT /semaforos/:id` | admin | edita; se os tempos mudaram, **publica a configuração no MQTT** |
+| `DELETE /semaforos/:id` | admin | exclui; o histórico continua no banco |
+| `POST /semaforos/:id/configuracao` | admin | valida (RN05), salva e publica os tempos; **202** se o broker estiver fora |
+| `POST /semaforos/:id/comando` | logado | publica `{"cmd":"..."}`; **503** se o broker estiver fora |
+| `GET /semaforos/:id/status` | logado | último estado + falhas recebidas |
+
+Por que comando e configuração tratam o broker fora do ar de jeitos diferentes:
+
+- O **comando** só vale naquele momento. Por isso falha (503) em vez de ficar guardado.
+- A **configuração** é salva no cadastro mesmo assim (202). O semáforo a recebe quando os tempos forem enviados de novo.
+
+#### `test/api.test.js`: testes automáticos
+
+21 testes com o `node:test`, que já vem no Node. Eles:
+
+- usam um banco **em memória** (`BANCO_DB=':memory:'`), sem mexer no banco real;
+- sobem a API numa porta livre;
+- chamam `processarMensagem()` direto, simulando mensagens MQTT sem precisar de internet.
+
+Cobrem:
+
+- login, logout e token;
+- senhas e tokens guardados só como hash;
+- CRUD e validações de usuários e semáforos;
+- RN05 e o id seguro para o tópico;
+- permissões de operador e admin;
+- comando e configuração, inclusive com o broker fora do ar (503);
+- estado, falha, comando e configuração recebidos por MQTT, e o eco do próprio back-end sendo ignorado;
+- CORS, as páginas servidas e o JSON malformado.
+
+### 11.5 O que mudou no front-end
+
+| Arquivo | Mudança |
+|---|---|
+| `assets/js/armazenamento.js` | **Reescrito.** Antes lia e gravava o `localStorage`; agora cada função faz `fetch` para a API (detalhes abaixo). |
+| `assets/js/autenticacao.js` | `sair()` agora avisa o servidor (`POST /logout`) antes de voltar ao login. Se o servidor estiver fora, sai do mesmo jeito. |
+| `assets/js/aplicacao.js` | Gêmeos (detalhes abaixo). |
+| `login.html` | Chama `Armazenamento.entrar()` e guarda no `sessionStorage` o usuário + token devolvidos. Saiu o código que conferia a senha no navegador. |
+| `index.html` (Painel) | Busca `/painel` a cada 3 s. "Há quanto tempo" aparece em s, min, h ou dias. |
+| `usuarios.html` / `semaforos.html` | Usam as funções assíncronas (`await`) da API e mostram as mensagens de erro que vêm do servidor. O operador não vê os botões de editar. |
+| `gemeos.html` | O clique no semáforo funciona mesmo nos semáforos desenhados depois que a API responde (*event delegation*). O nome no detalhe vem do próprio desenho. |
+| `backend/public/index.html` (`/console`) | Usa o token da sessão e manda para o login se não houver. |
+
+Detalhes de `armazenamento.js`:
+
+- Todas as chamadas passam por `_requisitar()`, que:
+  - coloca o cabeçalho `Authorization: Bearer <token>`;
+  - transforma qualquer erro em uma mensagem pronta para mostrar na tela;
+  - se o servidor responder **401** (sessão vencida), limpa a sessão e volta para o login.
+- `URL_DA_API` é vazio quando a página vem da porta 3000. No Live Server (outra porta), usa `http://localhost:3000`.
+- Funções: `entrar`, `sair`, `obterPainel`, `listarUsuarios`, `salvarUsuario`, `excluirUsuario`, `listarDispositivos`, `salvarDispositivo`, `excluirDispositivo`.
+
+Detalhes de `aplicacao.js` (gêmeos):
+
+- Os semáforos são carregados **da API** (`await Armazenamento.listarDispositivos()`). Se a API estiver fora do ar, os gêmeos rodam com os semáforos padrão (**RN06**).
+- O nome do semáforo passa por `escaparHtml()` antes de entrar no HTML. Assim, um nome como `<script>` não vira código na página.
+- Saiu o código que gravava o estado no `sessionStorage` e os tempos no `localStorage`. Agora o back-end recebe tudo pelo MQTT e guarda no banco.
+
+### 11.6 Caminho de um comando, do começo ao fim
+
+Exemplo: alguém publica `{"cmd":"verde"}` em `aps1/semaforo/TURMA/EQUIPE/sem-a/comando` (pelo MQTTX ou pela API).
+
+1. O **broker** entrega a mensagem a todos que assinam o tópico: o back-end e a aba Gêmeos Digitais.
+2. O **back-end** (`mqtt.js`) registra no histórico `comandos`: `cmd:verde`, origem `MQTT`.
+   Se veio pela API, já registrou como origem `API` com o e-mail, e ignora o eco.
+3. O **gêmeo** (`aplicacao.js`) muda o sem-a para verde e publica em `.../sem-a/estado`:
+   `{"estado":"GREEN","origem":"gemeo-web",...}`
+4. O **back-end** recebe esse estado e grava na tabela `estados`.
+5. O **Painel**, que pergunta `/painel` a cada 3 s, lê o último estado do banco e mostra *Semáforo A · Verde*.
+
+E no sentido contrário, ao editar os tempos:
+
+1. Na tela **Semáforos**, o admin muda os tempos e salva → `PUT /semaforos/sem-a`.
+2. O back-end valida (RN05), grava no banco e, como os tempos mudaram, publica `{"vermelho":..,"amarelo":..,"verde":..,"origem":"backend"}` em `.../sem-a/configuracao`.
+3. O gêmeo (e o ESP32 ou o MQTTX) recebe e passa a usar os tempos novos.
+4. O histórico registra `configurar`, origem `API`, com o e-mail do admin.
+
+### 11.7 Segurança, em resumo
+
+- Senhas com **scrypt + sal**. Tokens guardados só como **hash SHA-256**. Nada sensível volta para o navegador.
+- Todas as rotas, menos o login, exigem token. As de cadastro exigem **admin**. A conferência acontece no **servidor**, não só escondendo botões na tela.
+- Todas as consultas SQL usam `prepare` com `?`, o que evita **SQL injection**.
+- Nomes são escapados antes de entrar no HTML, o que evita **XSS**.
+- O **CORS** aceita só páginas da própria máquina.
+- O servidor **não** entrega os arquivos internos (`backend/`, `.git`).
