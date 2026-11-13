@@ -39,12 +39,7 @@
 	</fieldset>
 
 	<script>
-		// As rotas exigem login: usa a sessão aberta nesta aba pelo login.html
-		const sessao = JSON.parse(sessionStorage.getItem('sessao') || 'null');
-		if (!sessao) location.replace('/login.html');
-
-		const cabecalhos = { Authorization: `Bearer ${sessao && sessao.token}` };
-		const idSemaforo = () => encodeURIComponent(document.getElementById('id-semaforo').value.trim());
+		const idSemaforo = () => document.getElementById('id-semaforo').value.trim();
 
 		// Chama a rota POST /semaforos/:id/configuracao
 		document.getElementById('btn-enviar').addEventListener('click', async () => {
@@ -53,22 +48,17 @@
 				amarelo: Number(document.getElementById('amarelo').value),
 				verde: Number(document.getElementById('verde').value),
 			};
-			const resposta = await fetch(`/semaforos/${idSemaforo()}/configuracao`, {
+			await fetch(`/semaforos/${idSemaforo()}/configuracao`, {
 				method: 'POST',
-				headers: { ...cabecalhos, 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(corpo),
 			});
-			const dados = await resposta.json();
-			const hora = new Date().toLocaleTimeString();
-			document.getElementById('resultado-envio').textContent = !resposta.ok
-				? dados.erro
-				: (dados.enviado ? 'Enviado às ' : 'Salvo, mas sem broker MQTT às ') + hora;
+			document.getElementById('resultado-envio').textContent = 'Enviado às ' + new Date().toLocaleTimeString();
 		});
 
 		// Consulta a rota GET /semaforos/:id/status a cada 2 segundos
 		async function atualizarStatus() {
-			const resposta = await fetch(`/semaforos/${idSemaforo()}/status`, { headers: cabecalhos });
-			if (!resposta.ok) return;
+			const resposta = await fetch(`/semaforos/${idSemaforo()}/status`);
 			const dados = await resposta.json();
 			document.getElementById('estado').textContent = dados.situacao ? dados.situacao.estado : '—';
 			const lista = document.getElementById('falhas');

@@ -4,14 +4,10 @@
   "private": true,
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "test": "node --test"
+    "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.19.2",
     "mqtt": "^5.10.1"
-  },
-  "engines": {
-    "node": ">=22.13"
   }
 }

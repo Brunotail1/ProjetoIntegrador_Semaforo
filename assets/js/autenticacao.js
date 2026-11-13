@@ -15,10 +15,8 @@ const Autenticacao = (() => {
 		return !!(sessao && sessao.role === 'admin');
 	}
 
-	// Encerra a sessão no servidor e volta pra tela de login. Se o servidor
-	// estiver fora, sai do mesmo jeito: o token expira sozinho.
-	async function sair() {
-		try { await Armazenamento.sair(); } catch { /* segue pro login */ }
+	// Encerra a sessão e volta pra tela de login
+	function sair() {
 		sessionStorage.removeItem(CHAVE_SESSAO);
 		location.replace('login.html');
 	}

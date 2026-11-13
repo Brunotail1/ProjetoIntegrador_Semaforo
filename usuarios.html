@@ -36,8 +36,8 @@
 					<section id="main" class="wrapper">
 						<div class="inner">
 							<h1 class="major">Cadastro de Usuários</h1>
-							<p>Gerencie os usuários do sistema. Somente administradores têm
-							acesso a esta tela.</p>
+							<p>Gerencie os usuários do sistema. Os dados são armazenados
+							localmente no navegador. Somente administradores têm acesso a esta tela.</p>
 
 							<ul class="actions">
 								<li><button id="btn-novo" class="button primary">Novo Usuário</button></li>
@@ -154,20 +154,10 @@
 				const ROTULO_PERFIL = { admin: 'Administrador', operador: 'Operador' };
 
 				let idEmEdicao = null;
-				let usuarios = []; // última lista recebida do back-end
-
-				// Busca a lista no back-end e redesenha a tabela
-				async function carregarUsuarios() {
-					try {
-						usuarios = await Armazenamento.listarUsuarios();
-						renderizarTabela();
-					} catch (erro) {
-						alert(erro.message);
-					}
-				}
 
 				// Redesenha a tabela de usuários (ou o aviso de lista vazia)
 				function renderizarTabela() {
+					const usuarios      = Armazenamento.listarUsuarios();
 					const corpoTabela   = document.getElementById('usr-tbody');
 					const avisoVazio    = document.getElementById('table-empty');
 					const areaDaTabela  = document.getElementById('table-wrapper');
@@ -222,24 +212,20 @@
 				}
 
 				function abrirFormularioDeEdicao(id) {
-					const usuario = usuarios.find((u) => u.id === id);
+					const usuario = Armazenamento.listarUsuarios().find((u) => u.id === id);
 					if (usuario) abrirFormulario(usuario);
 				}
 
-				async function excluirUsuario(id) {
+				function excluirUsuario(id) {
 					const sessao = Autenticacao.obterSessao();
 					if (sessao && sessao.id === id)
 						return alert('Você não pode excluir seu próprio usuário.');
 
-					const usuario = usuarios.find((u) => u.id === id);
+					const usuario = Armazenamento.listarUsuarios().find((u) => u.id === id);
 					if (!window.confirm('Excluir o usuário "' + (usuario ? usuario.nome : id) + '"?')) return;
 
-					try {
-						await Armazenamento.excluirUsuario(id);
-						await carregarUsuarios();
-					} catch (erro) {
-						alert(erro.message);
-					}
+					Armazenamento.excluirUsuario(id);
+					renderizarTabela();
 				}
 
 				function mostrarErro(mensagem) {
@@ -249,7 +235,7 @@
 				}
 
 				// Valida os campos e grava o usuário
-				async function salvarUsuario() {
+				function salvarUsuario() {
 					const nome        = document.getElementById('f-nome').value.trim();
 					const email       = document.getElementById('f-email').value.trim();
 					const perfil      = document.getElementById('f-role').value;
@@ -266,20 +252,26 @@
 					if (senha && senha.length < 4) return mostrarErro('A senha deve ter pelo menos 4 caracteres.');
 					if (senha && senha !== confirmacao) return mostrarErro('As senhas não coincidem.');
 
+					const outrosUsuarios = Armazenamento.listarUsuarios().filter((u) => u.id !== idEmEdicao);
+					if (outrosUsuarios.some((u) => u.email === email))
+						return mostrarErro('Já existe um usuário com esse e-mail.');
+
 					// Na edição, senha em branco significa "manter a atual"
-					try {
-						await Armazenamento.salvarUsuario({
-							id: idEmEdicao || undefined, nome, email, role: perfil, senha,
-						});
-						document.getElementById('form-section').hidden = true;
-						await carregarUsuarios();
-					} catch (erro) {
-						mostrarErro(erro.message);
+					let senhaFinal = senha;
+					if (!ehNovo && !senha) {
+						const usuarioAtual = Armazenamento.listarUsuarios().find((u) => u.id === idEmEdicao);
+						senhaFinal = usuarioAtual ? usuarioAtual.senha : '';
 					}
+
+					Armazenamento.salvarUsuario({
+						id: idEmEdicao || undefined, nome, email, role: perfil, senha: senhaFinal,
+					});
+					document.getElementById('form-section').hidden = true;
+					renderizarTabela();
 				}
 
 				document.addEventListener('DOMContentLoaded', () => {
-					carregarUsuarios();
+					renderizarTabela();
 					document.getElementById('btn-novo').addEventListener('click', () => abrirFormulario(null));
 					document.getElementById('btn-salvar').addEventListener('click', salvarUsuario);
 					document.getElementById('btn-cancelar').addEventListener('click', () => {

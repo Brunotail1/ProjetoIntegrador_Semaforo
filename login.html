@@ -143,6 +143,27 @@
 				'use strict';
 
 				const CHAVE_SESSAO = 'sessao';
+				const EMAIL_ADMIN_PADRAO = 'admin@sistema.local';
+				const SENHA_ADMIN_PADRAO = '123456';
+
+				// Cria (ou repõe) o usuário administrador de demonstração
+				function criarAdministradorPadrao() {
+					const usuarios = Armazenamento.listarUsuarios();
+					const existente = usuarios.find((u) => u.email === EMAIL_ADMIN_PADRAO);
+
+					if (!existente) {
+						Armazenamento.salvarUsuario({
+							nome: 'Administrador',
+							email: EMAIL_ADMIN_PADRAO,
+							senha: SENHA_ADMIN_PADRAO,
+							role: 'admin',
+						});
+					} else if (existente.senha !== SENHA_ADMIN_PADRAO) {
+						// Garante que a senha da demo continue valendo
+						existente.senha = SENHA_ADMIN_PADRAO;
+						Armazenamento.salvarUsuario(existente);
+					}
+				}
 
 				// Mostra a mensagem de erro embaixo do formulário
 				function mostrarErro(mensagem) {
@@ -151,19 +172,24 @@
 					elemento.style.display = '';
 				}
 
-				// Confere as credenciais no back-end e guarda a sessão (com o token) nesta aba
-				async function fazerLogin() {
+				// Confere as credenciais e abre a sessão
+				function fazerLogin() {
 					const email = document.getElementById('f-email').value.trim();
 					const senha = document.getElementById('f-senha').value;
 					if (!email || !senha) return mostrarErro('Preencha e-mail e senha.');
 
+					// Busca o usuário com e-mail e senha exatos (sem hash)
+					const usuario = Armazenamento.listarUsuarios()
+						.find((u) => u.email === email && u.senha === senha);
+					if (!usuario) return mostrarErro('E-mail ou senha incorretos.');
+
 					try {
-						const sessao = await Armazenamento.entrar(email, senha);
-						sessionStorage.setItem(CHAVE_SESSAO, JSON.stringify(sessao));
-						location.replace('index.html');
-					} catch (erro) {
-						mostrarErro(erro.message);
-					}
+						sessionStorage.setItem(CHAVE_SESSAO, JSON.stringify({
+							id: usuario.id, nome: usuario.nome, email: usuario.email, role: usuario.role,
+						}));
+					} catch {}
+
+					location.replace('index.html');
 				}
 
 				document.addEventListener('DOMContentLoaded', () => {
@@ -174,6 +200,8 @@
 							return;
 						}
 					} catch {}
+
+					criarAdministradorPadrao();
 
 					document.getElementById('btn-login').addEventListener('click', fazerLogin);
 					document.getElementById('f-senha').addEventListener('keydown', (evento) => {
