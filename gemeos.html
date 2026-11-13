@@ -236,15 +236,9 @@
 				if (elBlocoStatus)   elBlocoStatus.dataset.state = estado;
 			}
 
-			function abrirModal(idDispositivo) {
+			function abrirModal(idDispositivo, nome) {
 				idDispositivoAberto = idDispositivo;
 
-				const dispositivo = window.Armazenamento
-					? Armazenamento.listarDispositivos().find((d) => d.id === idDispositivo)
-					: null;
-				const nome = (dispositivo && dispositivo.nome)
-					? dispositivo.nome
-					: (CONFIGURACAO.rotulosDispositivos[idDispositivo] || idDispositivo);
 				const topico = `aps1/semaforo/${CONFIGURACAO.turma}/${CONFIGURACAO.equipe}/${idDispositivo}/comando`;
 
 				areaDoSvg.innerHTML = montarHtmlGemeo('modal-' + idDispositivo, nome);
@@ -285,9 +279,13 @@
 					: Math.ceil(semaforo.tempoRestanteMs / 1000) + 's';
 			}, 200);
 
-			// Clique em qualquer semáforo da intersecção abre o modal
-			document.querySelectorAll('.twin-intersection .twin-semaforo').forEach((elemento) => {
-				elemento.addEventListener('click', () => abrirModal(elemento.id.replace('twin-', '')));
+			// Clique em qualquer semáforo da intersecção abre o modal. Fica na área
+			// inteira porque os semáforos só são desenhados depois que a API responde.
+			document.querySelector('.twin-intersection').addEventListener('click', (evento) => {
+				const elemento = evento.target.closest('.twin-semaforo');
+				if (!elemento) return;
+				const nome = elemento.querySelector('.twin-label').textContent;
+				abrirModal(elemento.id.replace('twin-', ''), nome);
 			});
 
 			// Fechar pelo ×, pelo fundo escuro ou pelo Esc
