@@ -1,58 +1,92 @@
 'use strict';
 
-// Gerencia os dados do sistema no localStorage do navegador
+// Fala com a API do back-end. Os dados do sistema ficam no banco SQLite.
 const Armazenamento = (() => {
-	// Chaves onde os dados ficam salvos
-	const CHAVE_USUARIOS     = 'semaforo_usuarios';
-	const CHAVE_DISPOSITIVOS = 'semaforo_dispositivos';
+	const PORTA_DA_API = '3000';
+	const CHAVE_SESSAO = 'sessao';
 
-	// Lê uma lista do localStorage e converte de JSON pra array
-	function _lerLista(chave) {
-		try { return JSON.parse(localStorage.getItem(chave) || '[]'); } catch { return []; }
+	// Na porta da API o caminho é relativo; no Live Server (outra porta) precisa do endereço completo
+	const URL_DA_API = location.port === PORTA_DA_API ? '' : `http://localhost:${PORTA_DA_API}`;
+
+	function _lerToken() {
+		try { return (JSON.parse(sessionStorage.getItem(CHAVE_SESSAO) || 'null') || {}).token; } catch { return null; }
 	}
 
-	// Salva uma lista no localStorage convertendo pra JSON
-	function _gravarLista(chave, lista) {
-		try { localStorage.setItem(chave, JSON.stringify(lista)); } catch {}
+	// Faz a chamada e devolve o JSON da resposta; qualquer erro vira Error com
+	// uma mensagem pronta pra mostrar na tela
+	async function _requisitar(metodo, caminho, corpo) {
+		const token = _lerToken();
+		const cabecalhos = {};
+		if (corpo !== undefined) cabecalhos['Content-Type'] = 'application/json';
+		if (token) cabecalhos.Authorization = `Bearer ${token}`;
+
+		let resposta;
+		try {
+			resposta = await fetch(URL_DA_API + caminho, {
+				method: metodo,
+				headers: cabecalhos,
+				body: corpo !== undefined ? JSON.stringify(corpo) : undefined,
+			});
+		} catch {
+			throw new Error('Não foi possível conectar ao servidor. Verifique se o back-end está rodando.');
+		}
+
+		// Sessão vencida ou encerrada no servidor: volta pro login
+		if (resposta.status === 401 && token) {
+			sessionStorage.removeItem(CHAVE_SESSAO);
+			location.replace('login.html');
+		}
+
+		const dados = await resposta.json().catch(() => null);
+		if (!resposta.ok) throw new Error((dados && dados.erro) || 'Erro ao falar com o servidor.');
+		return dados;
 	}
 
 	return {
-		// ── CRUD de Usuários ──
-		listarUsuarios() {
-			return _lerLista(CHAVE_USUARIOS);
+		// ── Sessão ──
+		entrar(email, senha) {
+			return _requisitar('POST', '/login', { email, senha });
 		},
 
+		sair() {
+			return _requisitar('POST', '/logout');
+		},
+
+		// ── Painel ──
+		obterPainel() {
+			return _requisitar('GET', '/painel');
+		},
+
+		// ── CRUD de Usuários ──
+		listarUsuarios() {
+			return _requisitar('GET', '/usuarios');
+		},
+
+		// Com id atualiza; sem id cria um novo
 		salvarUsuario(usuario) {
-			const usuarios = _lerLista(CHAVE_USUARIOS);
-			// Gera ID único se não existir (timestamp convertido pra base36)
-			if (!usuario.id) usuario.id = Date.now().toString(36);
-			const indice = usuarios.findIndex((u) => u.id === usuario.id);
-			// Atualiza se existe, senão adiciona novo
-			if (indice >= 0) usuarios[indice] = usuario; else usuarios.push(usuario);
-			_gravarLista(CHAVE_USUARIOS, usuarios);
-			return usuario;
+			return usuario.id
+				? _requisitar('PUT', `/usuarios/${encodeURIComponent(usuario.id)}`, usuario)
+				: _requisitar('POST', '/usuarios', usuario);
 		},
 
 		excluirUsuario(id) {
-			_gravarLista(CHAVE_USUARIOS, _lerLista(CHAVE_USUARIOS).filter((u) => u.id !== id));
+			return _requisitar('DELETE', `/usuarios/${encodeURIComponent(id)}`);
 		},
 
 		// ── CRUD de Semáforos ──
 		listarDispositivos() {
-			return _lerLista(CHAVE_DISPOSITIVOS);
+			return _requisitar('GET', '/semaforos');
 		},
 
-		salvarDispositivo(dispositivo) {
-			const dispositivos = _lerLista(CHAVE_DISPOSITIVOS);
-			const indice = dispositivos.findIndex((d) => d.id === dispositivo.id);
-			// Atualiza se já existe, senão adiciona
-			if (indice >= 0) dispositivos[indice] = dispositivo; else dispositivos.push(dispositivo);
-			_gravarLista(CHAVE_DISPOSITIVOS, dispositivos);
-			return dispositivo;
+		// O id é escolhido no cadastro, então é quem chama que diz se o semáforo é novo
+		salvarDispositivo(dispositivo, ehNovo) {
+			return ehNovo
+				? _requisitar('POST', '/semaforos', dispositivo)
+				: _requisitar('PUT', `/semaforos/${encodeURIComponent(dispositivo.id)}`, dispositivo);
 		},
 
 		excluirDispositivo(id) {
-			_gravarLista(CHAVE_DISPOSITIVOS, _lerLista(CHAVE_DISPOSITIVOS).filter((d) => d.id !== id));
+			return _requisitar('DELETE', `/semaforos/${encodeURIComponent(id)}`);
 		},
 	};
 })();

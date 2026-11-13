@@ -177,10 +177,20 @@
 
 				let idEmEdicao = null;
 				let podeEditar = false; // definido depois da checagem de perfil
+				let dispositivos = [];  // última lista recebida do back-end
+
+				// Busca a lista no back-end e redesenha a tabela
+				async function carregarSemaforos() {
+					try {
+						dispositivos = await Armazenamento.listarDispositivos();
+						renderizarTabela();
+					} catch (erro) {
+						alert(erro.message);
+					}
+				}
 
 				// Redesenha a tabela de semáforos (ou o aviso de lista vazia)
 				function renderizarTabela() {
-					const dispositivos = Armazenamento.listarDispositivos();
 					const corpoTabela  = document.getElementById('sem-tbody');
 					const avisoVazio   = document.getElementById('table-empty');
 					const areaDaTabela = document.getElementById('table-wrapper');
@@ -236,14 +246,18 @@
 				}
 
 				function abrirFormularioDeEdicao(id) {
-					const dispositivo = Armazenamento.listarDispositivos().find((d) => d.id === id);
+					const dispositivo = dispositivos.find((d) => d.id === id);
 					if (dispositivo) abrirFormulario(dispositivo);
 				}
 
-				function excluirSemaforo(id) {
+				async function excluirSemaforo(id) {
 					if (!window.confirm('Excluir o semáforo "' + id + '"?')) return;
-					Armazenamento.excluirDispositivo(id);
-					renderizarTabela();
+					try {
+						await Armazenamento.excluirDispositivo(id);
+						await carregarSemaforos();
+					} catch (erro) {
+						alert(erro.message);
+					}
 				}
 
 				function mostrarErro(mensagem) {
@@ -258,7 +272,7 @@
 				}
 
 				// Valida os campos e grava o semáforo
-				function salvarSemaforo() {
+				async function salvarSemaforo() {
 					const id          = document.getElementById('f-id').value.trim();
 					const nome        = document.getElementById('f-nome').value.trim();
 					const localizacao = document.getElementById('f-localizacao').value.trim();
@@ -275,16 +289,15 @@
 					if (!tempoEhValido(tempoAmarelo))  return mostrarErro('Tempo Amarelo deve ser entre 1 e 60 segundos.');
 					if (!tempoEhValido(tempoVerde))    return mostrarErro('Tempo Verde deve ser entre 1 e 60 segundos.');
 
-					if (!idEmEdicao) {
-						const jaExiste = Armazenamento.listarDispositivos().some((d) => d.id === id);
-						if (jaExiste) return mostrarErro('Já existe um semáforo com o ID "' + id + '".');
+					try {
+						await Armazenamento.salvarDispositivo({
+							id, nome, localizacao, turma, equipe, tempoVermelho, tempoAmarelo, tempoVerde,
+						}, !idEmEdicao);
+						document.getElementById('form-section').hidden = true;
+						await carregarSemaforos();
+					} catch (erro) {
+						mostrarErro(erro.message);
 					}
-
-					Armazenamento.salvarDispositivo({
-						id, nome, localizacao, turma, equipe, tempoVermelho, tempoAmarelo, tempoVerde,
-					});
-					document.getElementById('form-section').hidden = true;
-					renderizarTabela();
 				}
 
 				document.addEventListener('DOMContentLoaded', () => {
@@ -297,7 +310,7 @@
 						if (colunaAcoes) colunaAcoes.textContent = '';
 					}
 
-					renderizarTabela();
+					carregarSemaforos();
 
 					if (podeEditar) {
 						document.getElementById('btn-novo').addEventListener('click', () => abrirFormulario(null));

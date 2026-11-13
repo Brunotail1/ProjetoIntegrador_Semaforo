@@ -3,8 +3,9 @@
 // ── Montagem do gêmeo digital (SVG) ──────────────────────────────────────────
 // Monta o HTML de um semáforo: SVG + rótulo + emblema de estado + contagem.
 // O id entra nos ids dos gradientes do SVG, por isso é higienizado antes.
-function montarHtmlGemeo(id, rotulo) {
+function montarHtmlGemeo(id, nome) {
 	const idSeguro = id.replace(/[^a-zA-Z0-9_-]/g, '_');
+	const rotulo = escaparHtml(nome); // o nome vem do cadastro e entra no innerHTML
 	return `<div id="twin-${id}" class="twin-semaforo" data-state="RED">
 <svg class="semaforo-svg" viewBox="0 0 120 370" xmlns="http://www.w3.org/2000/svg" aria-label="${rotulo}">
 			<defs>
@@ -138,7 +139,6 @@ window.RegistroDeComandos = RegistroDeComandos;
 // ── Estado compartilhado em memória ──────────────────────────────────────────
 const semaforos = {};                // idDispositivo → instância de Semaforo
 const temporizadoresVigilancia = {}; // idDispositivo → timeout do watchdog
-const ultimoContatoMqtt = {};        // idDispositivo → timestamp da última mensagem
 
 // ── Atualização da tela ──────────────────────────────────────────────────────
 // Acende o LED certo do SVG e atualiza o emblema com o nome do estado
@@ -166,15 +166,6 @@ function atualizarGemeoNaTela(idDispositivo, estado) {
 	if (emblema) emblema.textContent = ROTULO_ESTADO[estado] || estado;
 }
 
-// Publica o estado no sessionStorage pro painel (index.html) exibir ao vivo
-function salvarEstadoDoDispositivo(idDispositivo, estado, ultimoMqtt) {
-	try {
-		const estados = JSON.parse(sessionStorage.getItem('estado_dispositivos') || '{}');
-		estados[idDispositivo] = { estado, ultimoMqtt, ts: Date.now() };
-		sessionStorage.setItem('estado_dispositivos', JSON.stringify(estados));
-	} catch { /* sessionStorage indisponível — não é fatal */ }
-}
-
 // Atualiza a cada 200ms o "faltam Xs" embaixo de cada semáforo
 function iniciarContagemRegressiva() {
 	setInterval(() => {
@@ -195,7 +186,6 @@ function iniciarContagemRegressiva() {
 // Cada mensagem recebida reinicia a contagem; se o dispositivo ficar mudo além
 // do tempo limite, ele cai no amarelo piscante.
 function reiniciarVigilanciaDoDispositivo(idDispositivo) {
-	ultimoContatoMqtt[idDispositivo] = Date.now();
 	clearTimeout(temporizadoresVigilancia[idDispositivo]);
 
 	temporizadoresVigilancia[idDispositivo] = setTimeout(() => {
@@ -204,14 +194,19 @@ function reiniciarVigilanciaDoDispositivo(idDispositivo) {
 			semaforo.entrarEmModoSeguranca();
 			RegistroDeComandos.registrar(idDispositivo, 'SYSTEM', 'watchdog_timeout', 'SAFE_STATE', 'RN04: sem heartbeat por 15s');
 		}
-		salvarEstadoDoDispositivo(idDispositivo, 'BLINK_YELLOW', ultimoContatoMqtt[idDispositivo]);
 	}, CONFIGURACAO.tempoLimiteVigilancia);
 }
 
 // ── Carga inicial ────────────────────────────────────────────────────────────
-// Lê os dispositivos cadastrados; sem nenhum cadastro, usa os padrões da CONFIGURACAO
-function carregarDispositivosAtivos() {
-	const cadastrados = window.Armazenamento ? Armazenamento.listarDispositivos() : [];
+// Lê os dispositivos cadastrados; sem nenhum cadastro, usa os padrões da CONFIGURACAO.
+// RN06: com o back-end fora do ar os simuladores continuam rodando com os padrões.
+async function carregarDispositivosAtivos() {
+	let cadastrados = [];
+	try {
+		cadastrados = await Armazenamento.listarDispositivos();
+	} catch (erro) {
+		console.warn('Usando os semáforos padrão:', erro.message);
+	}
 
 	if (cadastrados.length > 0) {
 		return cadastrados.map((dispositivo) => ({
@@ -232,8 +227,8 @@ function carregarDispositivosAtivos() {
 	}));
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-	const dispositivosAtivos = carregarDispositivosAtivos();
+document.addEventListener('DOMContentLoaded', async () => {
+	const dispositivosAtivos = await carregarDispositivosAtivos();
 	CONFIGURACAO.idsDispositivos = dispositivosAtivos.map((dispositivo) => dispositivo.id);
 
 	const temposPorDispositivo = {};
@@ -266,7 +261,6 @@ document.addEventListener('DOMContentLoaded', () => {
 		const semaforo = new Semaforo(id, temposPorDispositivo[id] || CONFIGURACAO.tempos,
 			(idDispositivo, novoEstado, estadoAnterior) => {
 				atualizarGemeoNaTela(idDispositivo, novoEstado);
-				salvarEstadoDoDispositivo(idDispositivo, novoEstado, ultimoContatoMqtt[idDispositivo]);
 
 				// As piscadas do intermitente repetem o mesmo estado a cada 500ms: são
 				// só visuais, não viram histórico (RN07) nem mensagem no broker.
@@ -309,7 +303,6 @@ document.addEventListener('DOMContentLoaded', () => {
 		RegistroDeComandos.registrar('SISTEMA', 'SYSTEM', 'mqtt_disconnect', 'SAFE_STATE', 'RN04: conexão perdida');
 		CONFIGURACAO.idsDispositivos.forEach((id) => {
 			if (semaforos[id]) semaforos[id].entrarEmModoSeguranca();
-			salvarEstadoDoDispositivo(id, 'BLINK_YELLOW', ultimoContatoMqtt[id]);
 		});
 	};
 
@@ -319,11 +312,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		const semaforo = semaforos[idDispositivo];
 		if (!semaforo) return;
-
-		if (sufixo === 'sincronizacao') {
-			salvarEstadoDoDispositivo(idDispositivo, semaforo.estado, ultimoContatoMqtt[idDispositivo]);
-			return;
-		}
 
 		if (sufixo === 'estado') {
 			// Estado publicado por um gêmeo web (esta ou outra aba aberta) não manda na tela;
@@ -363,18 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			// Se estiver no ciclo automático, a cor atual já passa a contar com o tempo novo
 			if (semaforo.emExecucao && semaforo.estado !== 'BLINK_YELLOW') semaforo.reiniciarFaseAtual();
 
-			// Guarda no cadastro (em segundos) pra configuração sobreviver a um recarregamento
-			const cadastrado = window.Armazenamento
-				? Armazenamento.listarDispositivos().find((d) => d.id === idDispositivo)
-				: null;
-			if (cadastrado) {
-				Armazenamento.salvarDispositivo(Object.assign({}, cadastrado, {
-					tempoVermelho: semaforo.tempos.vermelho / 1000,
-					tempoAmarelo: semaforo.tempos.amarelo / 1000,
-					tempoVerde: semaforo.tempos.verde / 1000,
-				}));
-			}
-
+			// Não precisa salvar aqui: o back-end também recebe e guarda no cadastro
 			console.log(`[MQTT] tempos de ${idDispositivo} (ms):`, semaforo.tempos);
 			RegistroDeComandos.registrar(idDispositivo, 'MQTT', 'configurar', 'OK', JSON.stringify(payload));
 			return;
@@ -383,7 +360,6 @@ document.addEventListener('DOMContentLoaded', () => {
 		if (sufixo === 'falha') {
 			semaforo.entrarEmModoSeguranca();
 			RegistroDeComandos.registrar(idDispositivo, 'MQTT', `falha:${payload.luz || '?'}`, 'SAFE_STATE', 'RN09: falha de luz');
-			salvarEstadoDoDispositivo(idDispositivo, 'BLINK_YELLOW', ultimoContatoMqtt[idDispositivo]);
 		}
 	};
 
