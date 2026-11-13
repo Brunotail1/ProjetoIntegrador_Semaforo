@@ -164,6 +164,10 @@ Isso mostra **tudo** o que os semáforos e o back-end trocam.
 
 > Antes de publicar, deixe a tela **Gêmeos Digitais** aberta no navegador.
 > No campo de publicar do MQTTX, escolha o formato **JSON**.
+>
+> **Cuidado ao digitar o payload:** o editor do MQTTX fecha `{` e `"` sozinho. Se você digitar o JSON inteiro,
+> sobra um `"}` no final e aparece *"Publish message SyntaxError: Unexpected non-whitespace character after JSON"*.
+> Apague o que sobrou depois do último `}`, ou **cole** o payload em vez de digitar.
 
 ### 6.2 Mensagens para testar
 
